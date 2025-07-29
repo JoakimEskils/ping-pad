@@ -15,13 +15,11 @@ A SaaS tool for testing REST API endpoints and logging webhooks — built with S
 
 ### Clone the repository
 
-```bash
 git clone https://github.com/yourusername/ping-pad.git
 cd ping-pad
 
 ### Run the project with Docker Compose
 
-```bash
 docker compose up --build
 
 This will build and start two containers:
