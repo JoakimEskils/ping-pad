@@ -1,12 +1,8 @@
 import { useState } from 'react';
-import type { User, ApiEndpoint, ApiTestResult } from '../types';
+import type { ApiEndpoint, ApiTestResult } from '../types';
 import Modal from './Modal';
 
-interface ApiEndpointsProps {
-  user: User;
-}
-
-export default function ApiEndpoints({ user }: ApiEndpointsProps) {
+export default function ApiEndpoints() {
   const [endpoints, setEndpoints] = useState<ApiEndpoint[]>([]);
   const [testResults, setTestResults] = useState<ApiTestResult[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
