@@ -7,7 +7,7 @@ function App() {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = async (email: string, password: string) => {
+  const handleLogin = async (email: string) => {
     setIsLoading(true);
     try {
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -29,6 +29,10 @@ function App() {
       setIsLoading(false);
     }
   };
+  
+    const handleGitHubLogin = () => {
+    window.location.href = "http://localhost:8080/oauth2/authorization/github";
+  };
 
   const handleLogout = () => {
     setUser(null);
@@ -48,6 +52,21 @@ function App() {
           </p>
         </div>
         <LoginForm onLogin={handleLogin} isLoading={isLoading} />
+              <button
+        onClick={handleGitHubLogin}
+        style={{
+          marginTop: "2rem",
+          padding: "0.75rem 1.5rem",
+          fontSize: "1rem",
+          backgroundColor: "#24292f",
+          color: "#fff",
+          border: "none",
+          borderRadius: "5px",
+          cursor: "pointer",
+        }}
+      >
+        Login with GitHub
+      </button>
       </div>
     );
   }

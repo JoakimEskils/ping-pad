@@ -79,7 +79,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
 
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px 20px' }}>
         {activeTab === 'endpoints' ? (
-          <ApiEndpoints user={user} />
+          <ApiEndpoints />
         ) : (
           <Webhooks user={user} />
         )}

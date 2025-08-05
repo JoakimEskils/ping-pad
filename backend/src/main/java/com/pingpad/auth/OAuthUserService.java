@@ -1,0 +1,42 @@
+package com.pingpad.auth;
+
+import com.pingpad.models.User;
+import com.pingpad.repositories.UserRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
+import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
+import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.stereotype.Service;
+
+import java.util.Collections;
+import java.util.Map;
+
+@Service
+@RequiredArgsConstructor
+public class OAuthUserService extends DefaultOAuth2UserService {
+
+    private final UserRepository userRepository;
+
+    @Override
+    public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
+        OAuth2User oAuthUser = super.loadUser(userRequest);
+        Map<String, Object> attributes = oAuthUser.getAttributes();
+
+        String login = (String) attributes.get("login");
+        String name = (String) attributes.get("name");
+
+        User user = userRepository.findByGithubLogin(login).orElseGet(() -> new User());
+        user.setGithubLogin(login);
+        user.setName(name != null ? name : login);
+        userRepository.save(user);
+
+        return new DefaultOAuth2User(
+                Collections.singleton(new SimpleGrantedAuthority("ROLE_USER")),
+                attributes,
+                "login"
+        );
+    }
+}
