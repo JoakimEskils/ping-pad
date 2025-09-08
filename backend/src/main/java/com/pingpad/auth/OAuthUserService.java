@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import java.util.Collections;
 import java.util.Map;
 
+// John was here
 @Service
 @RequiredArgsConstructor
 public class OAuthUserService extends DefaultOAuth2UserService {
