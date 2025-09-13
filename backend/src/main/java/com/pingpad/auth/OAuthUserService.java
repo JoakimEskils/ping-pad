@@ -27,10 +27,12 @@ public class OAuthUserService extends DefaultOAuth2UserService {
 
         String login = (String) attributes.get("login");
         String name = (String) attributes.get("name");
+        String email = (String) attributes.get("email");
 
         User user = userRepository.findByGithubLogin(login).orElseGet(() -> new User());
         user.setGithubLogin(login);
         user.setName(name != null ? name : login);
+        user.setEmail(email != null ? email : login + "@github.com");
         userRepository.save(user);
 
         return new DefaultOAuth2User(

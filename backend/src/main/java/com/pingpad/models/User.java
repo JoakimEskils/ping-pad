@@ -17,10 +17,11 @@ public class User {
 
     @jakarta.persistence.Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long Id;
+    private Long id;
 
     private String name;
     private String githubLogin;
+    private String email;
 
     @DateTimeFormat
     private LocalDateTime createdAt;
