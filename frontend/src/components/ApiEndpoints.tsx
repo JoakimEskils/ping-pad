@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { ApiEndpoint, ApiTestResult } from '../types';
 import Modal from './Modal';
 
@@ -6,6 +6,8 @@ export default function ApiEndpoints() {
   const [endpoints, setEndpoints] = useState<ApiEndpoint[]>([]);
   const [testResults, setTestResults] = useState<ApiTestResult[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isTesting, setIsTesting] = useState<string | null>(null);
   const [newEndpoint, setNewEndpoint] = useState({
     name: '',
     url: '',
@@ -14,11 +16,42 @@ export default function ApiEndpoints() {
     body: ''
   });
 
+  // Load endpoints on component mount
+  useEffect(() => {
+    loadEndpoints();
+  }, []);
+
+  const loadEndpoints = async () => {
+    try {
+      const response = await fetch('http://localhost:8080/api/endpoints', {
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        // Convert dates from strings
+        const endpoints = data.map((endpoint: any) => ({
+          ...endpoint,
+          id: endpoint.id.toString(),
+          createdAt: new Date(endpoint.createdAt),
+          updatedAt: new Date(endpoint.updatedAt)
+        }));
+        setEndpoints(endpoints);
+      } else {
+        console.error('Failed to load endpoints:', response.status);
+      }
+    } catch (error) {
+      console.error('Error loading endpoints:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleCreateEndpoint = () => {
     setIsModalOpen(true);
   };
 
-  const handleSubmitEndpoint = () => {
+  const handleSubmitEndpoint = async () => {
     if (!newEndpoint.name || !newEndpoint.url) {
       alert('Please fill in all required fields');
       return;
@@ -38,61 +71,106 @@ export default function ApiEndpoints() {
       }
     }
 
-    const endpoint: ApiEndpoint = {
-      id: Date.now().toString(),
-      name: newEndpoint.name,
-      url: newEndpoint.url,
-      method: newEndpoint.method,
-      headers,
-      body: newEndpoint.body || undefined,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
+    try {
+      const response = await fetch('http://localhost:8080/api/endpoints', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: newEndpoint.name,
+          url: newEndpoint.url,
+          method: newEndpoint.method,
+          headers,
+          body: newEndpoint.body || undefined
+        })
+      });
 
-    setEndpoints(prev => [endpoint, ...prev]);
-    setNewEndpoint({ name: '', url: '', method: 'GET', headers: '', body: '' });
-    setIsModalOpen(false);
+      if (response.ok) {
+        const data = await response.json();
+        const endpoint = {
+          ...data,
+          id: data.id.toString(),
+          createdAt: new Date(data.createdAt),
+          updatedAt: new Date(data.updatedAt)
+        };
+        setEndpoints(prev => [endpoint, ...prev]);
+        setNewEndpoint({ name: '', url: '', method: 'GET', headers: '', body: '' });
+        setIsModalOpen(false);
+      } else {
+        alert('Failed to create endpoint');
+      }
+    } catch (error) {
+      console.error('Error creating endpoint:', error);
+      alert('Error creating endpoint');
+    }
   };
 
   const handleTestEndpoint = async (endpoint: ApiEndpoint) => {
-    const startTime = Date.now();
+    setIsTesting(endpoint.id);
     
     try {
-      const response = await fetch(endpoint.url, {
-        method: endpoint.method,
-        headers: endpoint.headers,
-        body: endpoint.body,
+      const response = await fetch(`http://localhost:8080/api/endpoints/${endpoint.id}/test`, {
+        method: 'POST',
+        credentials: 'include'
       });
-      
-      const endTime = Date.now();
-      const responseTime = endTime - startTime;
-      
-      const result: ApiTestResult = {
-        id: Date.now().toString(),
-        endpointId: endpoint.id,
-        statusCode: response.status,
-        responseTime,
-        responseBody: await response.text(),
-        responseHeaders: Object.fromEntries(response.headers.entries()),
-        timestamp: new Date(),
-      };
-      
-      setTestResults(prev => [result, ...prev]);
+
+      if (response.ok) {
+        const data = await response.json();
+        const result: ApiTestResult = {
+          ...data,
+          id: data.id.toString(),
+          endpointId: data.endpointId.toString(),
+          timestamp: new Date(data.timestamp)
+        };
+        setTestResults(prev => [result, ...prev]);
+      } else {
+        alert('Failed to test endpoint');
+      }
     } catch (error) {
-      const result: ApiTestResult = {
-        id: Date.now().toString(),
-        endpointId: endpoint.id,
-        statusCode: 0,
-        responseTime: Date.now() - startTime,
-        responseBody: '',
-        responseHeaders: {},
-        error: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: new Date(),
-      };
-      
-      setTestResults(prev => [result, ...prev]);
+      console.error('Error testing endpoint:', error);
+      alert('Error testing endpoint');
+    } finally {
+      setIsTesting(null);
     }
   };
+
+  const handleDeleteEndpoint = async (endpointId: string) => {
+    if (!confirm('Are you sure you want to delete this endpoint?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:8080/api/endpoints/${endpointId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        setEndpoints(prev => prev.filter(e => e.id !== endpointId));
+        setTestResults(prev => prev.filter(r => r.endpointId !== endpointId));
+      } else {
+        alert('Failed to delete endpoint');
+      }
+    } catch (error) {
+      console.error('Error deleting endpoint:', error);
+      alert('Error deleting endpoint');
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '200px' 
+      }}>
+        <div>Loading endpoints...</div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: '20px' }}>
@@ -174,38 +252,31 @@ export default function ApiEndpoints() {
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button
                     onClick={() => handleTestEndpoint(endpoint)}
+                    disabled={isTesting === endpoint.id}
                     style={{
-                      backgroundColor: '#38a169',
+                      backgroundColor: isTesting === endpoint.id ? '#a0aec0' : '#38a169',
                       color: 'white',
                       padding: '6px 12px',
                       border: 'none',
+                      borderRadius: '4px',
+                      cursor: isTesting === endpoint.id ? 'not-allowed' : 'pointer',
+                      fontSize: '14px'
+                    }}
+                  >
+                    {isTesting === endpoint.id ? 'Testing...' : 'Test'}
+                  </button>
+                  <button 
+                    onClick={() => handleDeleteEndpoint(endpoint.id)}
+                    style={{
+                      backgroundColor: 'transparent',
+                      color: '#e53e3e',
+                      padding: '6px 12px',
+                      border: '1px solid #e2e8f0',
                       borderRadius: '4px',
                       cursor: 'pointer',
                       fontSize: '14px'
                     }}
                   >
-                    Test
-                  </button>
-                  <button style={{
-                    backgroundColor: 'transparent',
-                    color: '#666',
-                    padding: '6px 12px',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontSize: '14px'
-                  }}>
-                    Edit
-                  </button>
-                  <button style={{
-                    backgroundColor: 'transparent',
-                    color: '#e53e3e',
-                    padding: '6px 12px',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontSize: '14px'
-                  }}>
                     Delete
                   </button>
                 </div>
@@ -219,37 +290,43 @@ export default function ApiEndpoints() {
         <div style={{ marginTop: '32px' }}>
           <h2 style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '16px' }}>Recent Test Results</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
-            {testResults.slice(0, 6).map(result => (
-              <div key={result.id} style={{
-                backgroundColor: 'white',
-                padding: '16px',
-                borderRadius: '8px',
-                border: '1px solid #e2e8f0'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <span style={{
-                    backgroundColor: result.statusCode >= 200 && result.statusCode < 300 ? '#38a169' : '#e53e3e',
-                    color: 'white',
-                    padding: '4px 8px',
-                    borderRadius: '4px',
-                    fontSize: '12px'
-                  }}>
-                    {result.statusCode}
-                  </span>
-                  <span style={{ fontSize: '14px', color: '#666' }}>
-                    {result.responseTime}ms
-                  </span>
-                </div>
-                {result.error && (
-                  <p style={{ fontSize: '14px', color: '#e53e3e', marginTop: '8px' }}>
-                    {result.error}
+            {testResults.slice(0, 6).map(result => {
+              const endpoint = endpoints.find(e => e.id === result.endpointId);
+              return (
+                <div key={result.id} style={{
+                  backgroundColor: 'white',
+                  padding: '16px',
+                  borderRadius: '8px',
+                  border: '1px solid #e2e8f0'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <span style={{
+                      backgroundColor: result.statusCode && result.statusCode >= 200 && result.statusCode < 300 ? '#38a169' : '#e53e3e',
+                      color: 'white',
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      fontSize: '12px'
+                    }}>
+                      {result.statusCode || 'ERROR'}
+                    </span>
+                    <span style={{ fontSize: '14px', color: '#666' }}>
+                      {result.responseTime}ms
+                    </span>
+                  </div>
+                  <p style={{ fontSize: '14px', color: '#666', marginBottom: '8px' }}>
+                    {endpoint?.name || 'Unknown endpoint'}
                   </p>
-                )}
-                <p style={{ fontSize: '12px', color: '#999', marginTop: '8px' }}>
-                  {result.timestamp.toLocaleString()}
-                </p>
-              </div>
-            ))}
+                  {result.error && (
+                    <p style={{ fontSize: '14px', color: '#e53e3e', marginTop: '8px' }}>
+                      {result.error}
+                    </p>
+                  )}
+                  <p style={{ fontSize: '12px', color: '#999', marginTop: '8px' }}>
+                    {result.timestamp.toLocaleString()}
+                  </p>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -400,4 +477,4 @@ export default function ApiEndpoints() {
       </Modal>
     </div>
   );
-} 
+}
