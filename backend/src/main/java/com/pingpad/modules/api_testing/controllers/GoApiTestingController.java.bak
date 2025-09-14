@@ -1,0 +1,63 @@
+package com.pingpad.modules.api_testing.controllers;
+
+import com.pingpad.modules.api_testing.services.GoApiTestingService;
+import com.pingpad.modules.api_testing.services.GoApiTestingService.*;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
+
+/**
+ * Controller for Go API Testing Engine integration
+ * 
+ * Provides endpoints for testing the Go service integration and monitoring
+ */
+@RestController
+@RequestMapping("/api/go-testing")
+public class GoApiTestingController {
+
+    private final GoApiTestingService goApiTestingService;
+
+    public GoApiTestingController(GoApiTestingService goApiTestingService) {
+        this.goApiTestingService = goApiTestingService;
+    }
+
+    /**
+     * Get health status of the Go testing engine
+     */
+    @GetMapping("/health")
+    public ResponseEntity<GoHealthCheck> getHealth() {
+        try {
+            GoHealthCheck health = goApiTestingService.getHealthStatus();
+            return ResponseEntity.ok(health);
+        } catch (Exception e) {
+            return ResponseEntity.status(503).build();
+        }
+    }
+
+    /**
+     * Get metrics from the Go testing engine
+     */
+    @GetMapping("/metrics")
+    public ResponseEntity<Map<String, Object>> getMetrics() {
+        try {
+            Map<String, Object> metrics = goApiTestingService.getMetrics();
+            return ResponseEntity.ok(metrics);
+        } catch (Exception e) {
+            return ResponseEntity.status(503).build();
+        }
+    }
+
+    /**
+     * Test batch endpoints using Go engine
+     */
+    @PostMapping("/batch")
+    public ResponseEntity<GoBatchTestResult> testBatch(@RequestBody GoBatchTestRequest request) {
+        try {
+            GoBatchTestResult result = goApiTestingService.testBatch(request);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).build();
+        }
+    }
+}

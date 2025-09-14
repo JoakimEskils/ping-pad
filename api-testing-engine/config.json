@@ -1,0 +1,30 @@
+{
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8081,
+    "readTimeout": "30s",
+    "writeTimeout": "30s"
+  },
+  "database": {
+    "host": "localhost",
+    "port": 5432,
+    "user": "pingpad",
+    "password": "password",
+    "name": "pingpad_testing",
+    "sslMode": "disable"
+  },
+  "testing": {
+    "defaultTimeout": "30s",
+    "maxConcurrency": 100,
+    "rateLimitPerSecond": 100,
+    "maxRetries": 3,
+    "retryDelay": "1s",
+    "maxResponseSize": 10485760,
+    "followRedirects": true
+  },
+  "logging": {
+    "level": "info",
+    "format": "json",
+    "output": "stdout"
+  }
+}
