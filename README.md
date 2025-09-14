@@ -20,7 +20,15 @@ cd ping-pad
 
 ### Run the project with Docker Compose
 
+run tests:
+```bash
+cd backend && mvn test
+```
+
+Build and run locally:
+```bash
 docker compose up --build
+```
 
 This will build and start two containers:
 
