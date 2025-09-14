@@ -1,5 +1,5 @@
 package com.pingpad.modules.api_testing.models;
-
+import com.pingpad.modules.user_management.models.User;
 import jakarta.persistence.*;
 import org.springframework.format.annotation.DateTimeFormat;
 
