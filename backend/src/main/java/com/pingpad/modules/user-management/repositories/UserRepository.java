@@ -1,6 +1,6 @@
-package com.pingpad.repositories;
+package com.pingpad.modules.user_management.repositories;
 
-import com.pingpad.models.User;
+import com.pingpad.modules.user_management.models.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

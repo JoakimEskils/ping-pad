@@ -1,15 +1,15 @@
-package com.pingpad.controllers;
+package com.pingpad.modules.api_testing.controllers;
 
-import com.pingpad.dto.ApiEndpointResponse;
-import com.pingpad.dto.ApiTestResultResponse;
-import com.pingpad.dto.CreateApiEndpointRequest;
-import com.pingpad.models.ApiEndpoint;
-import com.pingpad.models.ApiTestResult;
-import com.pingpad.models.User;
-import com.pingpad.repositories.ApiEndpointRepository;
-import com.pingpad.repositories.ApiTestResultRepository;
-import com.pingpad.repositories.UserRepository;
-import com.pingpad.services.ApiTestingService;
+import com.pingpad.modules.api_testing.models.ApiEndpointResponse;
+import com.pingpad.modules.api_testing.models.ApiTestResultResponse;
+import com.pingpad.modules.api_testing.models.CreateApiEndpointRequest;
+import com.pingpad.modules.api_testing.models.ApiEndpoint;
+import com.pingpad.modules.api_testing.models.ApiTestResult;
+import com.pingpad.modules.user_management.models.User;
+import com.pingpad.modules.api_testing.repositories.ApiEndpointRepository;
+import com.pingpad.modules.api_testing.repositories.ApiTestResultRepository;
+import com.pingpad.modules.user_management.repositories.UserRepository;
+import com.pingpad.modules.api_testing.services.ApiTestingService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;

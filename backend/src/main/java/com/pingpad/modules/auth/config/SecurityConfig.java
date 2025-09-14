@@ -1,7 +1,7 @@
-package com.pingpad;
+package com.pingpad.modules.auth.config;
 
-import com.pingpad.auth.OAuthSuccessHandler;
-import com.pingpad.auth.OAuthUserService;
+import com.pingpad.modules.auth.config.OAuthSuccessHandler;
+import com.pingpad.modules.auth.OAuthUserService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;

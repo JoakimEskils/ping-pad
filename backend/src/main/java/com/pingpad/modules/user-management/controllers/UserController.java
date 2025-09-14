@@ -1,7 +1,7 @@
 package com.pingpad;
 
-import com.pingpad.models.User;
-import com.pingpad.repositories.UserRepository;
+import com.pingpad.modules.user_management.models.User;
+import com.pingpad.modules.user_management.repositories.UserRepository;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.GetMapping;

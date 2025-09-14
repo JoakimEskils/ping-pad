@@ -1,4 +1,4 @@
-package com.pingpad.models;
+package com.pingpad.modules.user_management.models;
 
 import jakarta.persistence.*;
 import org.springframework.format.annotation.DateTimeFormat;

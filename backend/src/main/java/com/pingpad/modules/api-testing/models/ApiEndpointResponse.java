@@ -1,6 +1,6 @@
-package com.pingpad.dto;
+package com.pingpad.modules.api_testing.models;
 
-import com.pingpad.models.ApiEndpoint;
+import com.pingpad.modules.api_testing.models.ApiEndpoint;
 import java.time.LocalDateTime;
 import java.util.Map;
 

@@ -1,7 +1,7 @@
-package com.pingpad.auth;
+package com.pingpad.modules.auth;
 
-import com.pingpad.models.User;
-import com.pingpad.repositories.UserRepository;
+import com.pingpad.modules.user_management.models.User;
+import com.pingpad.modules.user_management.repositories.UserRepository;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;

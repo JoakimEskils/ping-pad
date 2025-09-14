@@ -1,9 +1,9 @@
-package com.pingpad.services;
+package com.pingpad.modules.api_testing.services;
 
-import com.pingpad.models.ApiEndpoint;
-import com.pingpad.models.ApiTestResult;
-import com.pingpad.models.User;
-import com.pingpad.repositories.ApiTestResultRepository;
+import com.pingpad.modules.api_testing.models.ApiEndpoint;
+import com.pingpad.modules.api_testing.models.ApiTestResult;
+import com.pingpad.modules.user_management.models.User;
+import com.pingpad.modules.api_testing.repositories.ApiTestResultRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.*;
