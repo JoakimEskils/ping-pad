@@ -2,7 +2,6 @@ package com.pingpad.auth;
 
 import com.pingpad.models.User;
 import com.pingpad.repositories.UserRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
@@ -15,10 +14,13 @@ import java.util.Collections;
 import java.util.Map;
 
 @Service
-@RequiredArgsConstructor
 public class OAuthUserService extends DefaultOAuth2UserService {
 
     private final UserRepository userRepository;
+
+    public OAuthUserService(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
 
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {

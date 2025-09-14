@@ -2,7 +2,6 @@ package com.pingpad;
 
 import com.pingpad.models.User;
 import com.pingpad.repositories.UserRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -11,10 +10,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/user")
-@RequiredArgsConstructor
 public class UserController {
 
     private final UserRepository userRepository;
+
+    public UserController(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
 
     @GetMapping("/me")
     public User getCurrentUser(Authentication authentication) {
@@ -25,4 +27,4 @@ public class UserController {
         }
         return null;
     }
-} 
+}
