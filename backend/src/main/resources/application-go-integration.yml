@@ -1,0 +1,25 @@
+# Go API Testing Engine Integration Configuration
+
+api:
+  testing:
+    engine:
+      url: http://api-testing-engine:8081
+      timeout: 30000
+      max-concurrency: 100
+
+# RestTemplate configuration for Go service communication
+spring:
+  application:
+    name: pingpad-backend
+  
+  # RestTemplate configuration
+  rest:
+    template:
+      connect-timeout: 5000
+      read-timeout: 30000
+
+# Logging configuration
+logging:
+  level:
+    com.pingpad.modules.api_testing.services.GoApiTestingService: DEBUG
+    org.springframework.web.client.RestTemplate: DEBUG
