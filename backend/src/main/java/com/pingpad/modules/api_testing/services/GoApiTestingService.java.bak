@@ -1,0 +1,289 @@
+package com.pingpad.modules.api_testing.services;
+
+import com.pingpad.modules.api_testing.models.ApiEndpoint;
+import com.pingpad.modules.api_testing.models.ApiTestResult;
+import com.pingpad.modules.user_management.models.User;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Service for integrating with the Go API Testing Engine
+ */
+@Service
+public class GoApiTestingService {
+
+    private final RestTemplate restTemplate;
+    private final String goEngineUrl;
+
+    @Autowired
+    public GoApiTestingService(RestTemplate restTemplate, @Value("${api.testing.engine.url:http://api-testing-engine:8081}") String goEngineUrl) {
+        this.restTemplate = restTemplate;
+        this.goEngineUrl = goEngineUrl;
+    }
+
+    /**
+     * Test a single API endpoint using the Go engine
+     */
+    public ApiTestResult testEndpoint(ApiEndpoint endpoint, User user) {
+        try {
+            GoTestRequest request = convertToGoRequest(endpoint, user);
+            
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<GoTestRequest> entity = new HttpEntity<>(request, headers);
+            
+            String url = goEngineUrl + "/api/v1/test/endpoint";
+            ResponseEntity<GoTestResult> response = restTemplate.postForEntity(url, entity, GoTestResult.class);
+            
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                return convertFromGoResult(response.getBody(), endpoint, user);
+            } else {
+                return createErrorResult(endpoint, user, "Go engine returned error: " + response.getStatusCode());
+            }
+        } catch (Exception e) {
+            return createErrorResult(endpoint, user, "Go testing engine error: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Test multiple API endpoints in batch using the Go engine
+     */
+    public GoBatchTestResult testBatch(GoBatchTestRequest request) {
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<GoBatchTestRequest> entity = new HttpEntity<>(request, headers);
+            
+            String url = goEngineUrl + "/api/v1/test/batch";
+            ResponseEntity<GoBatchTestResult> response = restTemplate.postForEntity(url, entity, GoBatchTestResult.class);
+            
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                return response.getBody();
+            } else {
+                throw new RuntimeException("Go engine batch test failed: " + response.getStatusCode());
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Go testing engine batch error: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Get health status from the Go engine
+     */
+    public GoHealthCheck getHealthStatus() {
+        try {
+            String url = goEngineUrl + "/api/v1/health";
+            ResponseEntity<GoHealthCheck> response = restTemplate.getForEntity(url, GoHealthCheck.class);
+            
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                return response.getBody();
+            } else {
+                throw new RuntimeException("Go engine health check failed: " + response.getStatusCode());
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Go testing engine health error: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Get metrics from the Go engine
+     */
+    public Map<String, Object> getMetrics() {
+        try {
+            String url = goEngineUrl + "/api/v1/metrics";
+            ResponseEntity<Map> response = restTemplate.getForEntity(url, Map.class);
+            
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                return response.getBody();
+            } else {
+                throw new RuntimeException("Go engine metrics failed: " + response.getStatusCode());
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Go testing engine metrics error: " + e.getMessage());
+        }
+    }
+
+    private GoTestRequest convertToGoRequest(ApiEndpoint endpoint, User user) {
+        GoTestRequest request = new GoTestRequest();
+        request.setEndpointId(endpoint.getId().toString());
+        request.setMethod(endpoint.getMethod().name()); // Convert enum to string
+        request.setUrl(endpoint.getUrl());
+        request.setHeaders(endpoint.getHeaders() != null ? endpoint.getHeaders() : new HashMap<>());
+        request.setBody(endpoint.getBody() != null ? endpoint.getBody().getBytes() : null);
+        request.setTimeout("30s");
+        request.setMaxRetries(3);
+        request.setUserId(user.getId().toString());
+        return request;
+    }
+
+    private ApiTestResult convertFromGoResult(GoTestResult goResult, ApiEndpoint endpoint, User user) {
+        ApiTestResult result = new ApiTestResult();
+        result.setApiEndpoint(endpoint);
+        result.setUser(user);
+        result.setStatusCode(goResult.getStatusCode());
+        result.setResponseTime(goResult.getResponseTime());
+        result.setResponseBody(goResult.getResponseBody() != null ? new String(goResult.getResponseBody()) : null);
+        result.setResponseHeaders(goResult.getResponseHeaders());
+        result.setError(goResult.getError());
+        result.setTimestamp(LocalDateTime.now());
+        return result;
+    }
+
+    private ApiTestResult createErrorResult(ApiEndpoint endpoint, User user, String errorMessage) {
+        ApiTestResult result = new ApiTestResult();
+        result.setApiEndpoint(endpoint);
+        result.setUser(user);
+        result.setStatusCode(0);
+        result.setResponseTime(0L);
+        result.setError(errorMessage);
+        result.setTimestamp(LocalDateTime.now());
+        return result;
+    }
+
+    // Go API DTOs
+    public static class GoTestRequest {
+        private String id;
+        private String endpointId;
+        private String method;
+        private String url;
+        private Map<String, String> headers;
+        private byte[] body;
+        private String timeout;
+        private boolean followRedirects = true;
+        private int maxRetries;
+        private String userId;
+
+        // Getters and Setters
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
+        public String getEndpointId() { return endpointId; }
+        public void setEndpointId(String endpointId) { this.endpointId = endpointId; }
+        public String getMethod() { return method; }
+        public void setMethod(String method) { this.method = method; }
+        public String getUrl() { return url; }
+        public void setUrl(String url) { this.url = url; }
+        public Map<String, String> getHeaders() { return headers; }
+        public void setHeaders(Map<String, String> headers) { this.headers = headers; }
+        public byte[] getBody() { return body; }
+        public void setBody(byte[] body) { this.body = body; }
+        public String getTimeout() { return timeout; }
+        public void setTimeout(String timeout) { this.timeout = timeout; }
+        public boolean isFollowRedirects() { return followRedirects; }
+        public void setFollowRedirects(boolean followRedirects) { this.followRedirects = followRedirects; }
+        public int getMaxRetries() { return maxRetries; }
+        public void setMaxRetries(int maxRetries) { this.maxRetries = maxRetries; }
+        public String getUserId() { return userId; }
+        public void setUserId(String userId) { this.userId = userId; }
+    }
+
+    public static class GoTestResult {
+        private String id;
+        private String testRequestId;
+        private String endpointId;
+        private Integer statusCode;
+        private Long responseTime;
+        private byte[] responseBody;
+        private Map<String, String> responseHeaders;
+        private String error;
+        private boolean success;
+        private LocalDateTime timestamp;
+        private int retryCount;
+
+        // Getters and Setters
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
+        public String getTestRequestId() { return testRequestId; }
+        public void setTestRequestId(String testRequestId) { this.testRequestId = testRequestId; }
+        public String getEndpointId() { return endpointId; }
+        public void setEndpointId(String endpointId) { this.endpointId = endpointId; }
+        public Integer getStatusCode() { return statusCode; }
+        public void setStatusCode(Integer statusCode) { this.statusCode = statusCode; }
+        public Long getResponseTime() { return responseTime; }
+        public void setResponseTime(Long responseTime) { this.responseTime = responseTime; }
+        public byte[] getResponseBody() { return responseBody; }
+        public void setResponseBody(byte[] responseBody) { this.responseBody = responseBody; }
+        public Map<String, String> getResponseHeaders() { return responseHeaders; }
+        public void setResponseHeaders(Map<String, String> responseHeaders) { this.responseHeaders = responseHeaders; }
+        public String getError() { return error; }
+        public void setError(String error) { this.error = error; }
+        public boolean isSuccess() { return success; }
+        public void setSuccess(boolean success) { this.success = success; }
+        public LocalDateTime getTimestamp() { return timestamp; }
+        public void setTimestamp(LocalDateTime timestamp) { this.timestamp = timestamp; }
+        public int getRetryCount() { return retryCount; }
+        public void setRetryCount(int retryCount) { this.retryCount = retryCount; }
+    }
+
+    public static class GoBatchTestRequest {
+        private String id;
+        private String userId;
+        private List<GoTestRequest> requests;
+
+        // Getters and Setters
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
+        public String getUserId() { return userId; }
+        public void setUserId(String userId) { this.userId = userId; }
+        public List<GoTestRequest> getRequests() { return requests; }
+        public void setRequests(List<GoTestRequest> requests) { this.requests = requests; }
+    }
+
+    public static class GoBatchTestResult {
+        private String id;
+        private String userId;
+        private List<GoTestResult> results;
+        private GoTestSummary summary;
+
+        // Getters and Setters
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
+        public String getUserId() { return userId; }
+        public void setUserId(String userId) { this.userId = userId; }
+        public List<GoTestResult> getResults() { return results; }
+        public void setResults(List<GoTestResult> results) { this.results = results; }
+        public GoTestSummary getSummary() { return summary; }
+        public void setSummary(GoTestSummary summary) { this.summary = summary; }
+    }
+
+    public static class GoTestSummary {
+        private int totalTests;
+        private int successfulTests;
+        private int failedTests;
+        private long totalTime;
+        private double averageResponseTime;
+
+        // Getters and Setters
+        public int getTotalTests() { return totalTests; }
+        public void setTotalTests(int totalTests) { this.totalTests = totalTests; }
+        public int getSuccessfulTests() { return successfulTests; }
+        public void setSuccessfulTests(int successfulTests) { this.successfulTests = successfulTests; }
+        public int getFailedTests() { return failedTests; }
+        public void setFailedTests(int failedTests) { this.failedTests = failedTests; }
+        public long getTotalTime() { return totalTime; }
+        public void setTotalTime(long totalTime) { this.totalTime = totalTime; }
+        public double getAverageResponseTime() { return averageResponseTime; }
+        public void setAverageResponseTime(double averageResponseTime) { this.averageResponseTime = averageResponseTime; }
+    }
+
+    public static class GoHealthCheck {
+        private String status;
+        private String timestamp;
+        private Map<String, String> details;
+
+        // Getters and Setters
+        public String getStatus() { return status; }
+        public void setStatus(String status) { this.status = status; }
+        public String getTimestamp() { return timestamp; }
+        public void setTimestamp(String timestamp) { this.timestamp = timestamp; }
+        public Map<String, String> getDetails() { return details; }
+        public void setDetails(Map<String, String> details) { this.details = details; }
+    }
+}
