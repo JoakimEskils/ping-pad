@@ -18,6 +18,7 @@ import org.springframework.context.annotation.ComponentScan;
  */
 @SpringBootApplication
 @ComponentScan(basePackages = {
+    "com.pingpad",
     "com.pingpad.modules.auth",
     "com.pingpad.modules.user_management", 
     "com.pingpad.modules.api_testing",
