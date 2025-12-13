@@ -1,6 +1,6 @@
 # PingPad
 
-A SaaS tool for testing REST API endpoints and logging webhooks — built with Spring Boot (backend) and React + Vite (frontend).
+A SaaS tool for testing REST API endpoints and logging webhooks — built with Spring Boot (backend) and React + Vite (frontend), using modular monolith architecture.
 
 ## Local Development Setup
 
