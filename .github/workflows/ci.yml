@@ -47,9 +47,7 @@ jobs:
         POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
         POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
         POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
-        SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/${{ secrets.POSTGRES_DB }}
-        SPRING_DATASOURCE_USERNAME: ${{ secrets.POSTGRES_USER }}
-        SPRING_DATASOURCE_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+        # Don't set SPRING_DATASOURCE_* for tests - they use H2 from application-test.properties
     
     - name: Upload test results
       uses: actions/upload-artifact@v4

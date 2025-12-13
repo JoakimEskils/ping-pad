@@ -1,12 +1,15 @@
 package com.pingpad;
 
+import com.pingpad.config.TestSecurityConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
 @ActiveProfiles("test")
+@Import(TestSecurityConfig.class)
 class ApplicationIntegrationTest {
 
     @Test
