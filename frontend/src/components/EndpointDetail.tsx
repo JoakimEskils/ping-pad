@@ -77,17 +77,17 @@ export default function EndpointDetail({ endpoint, onClose }: EndpointDetailProp
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="fixed inset-0 bg-black/50" onClick={onClose} />
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div className="relative min-h-screen flex items-center justify-center p-4">
-        <div className="relative bg-white rounded-lg shadow-xl w-full max-w-7xl max-h-[90vh] overflow-y-auto">
+        <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-7xl max-h-[90vh] overflow-y-auto border border-slate-200">
           {/* Header */}
-          <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between z-10">
+          <div className="sticky top-0 bg-gradient-to-r from-slate-50 to-white border-b border-slate-200 px-6 py-5 flex items-center justify-between z-10 backdrop-blur-sm">
             <div>
               <div className="flex items-center gap-3 mb-2">
                 <h2 className="text-2xl font-bold text-slate-900">{endpoint.name}</h2>
-                <Badge variant="default">{endpoint.method}</Badge>
+                <Badge variant="default" className="text-xs">{endpoint.method}</Badge>
               </div>
-              <p className="text-sm text-slate-600 font-mono">{endpoint.url}</p>
+              <p className="text-sm text-slate-600 font-mono bg-slate-50 px-3 py-1.5 rounded-md inline-block">{endpoint.url}</p>
             </div>
             <Button variant="ghost" size="icon" onClick={onClose}>
               <X className="h-5 w-5" />

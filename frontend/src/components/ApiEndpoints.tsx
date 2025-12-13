@@ -272,8 +272,8 @@ export default function ApiEndpoints() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">API Endpoints</h1>
-          <p className="text-slate-600">Create and monitor your API endpoints</p>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">My Endpoints</h1>
+          <p className="text-slate-600">Create, manage, and monitor your API endpoints</p>
         </div>
         <Button onClick={handleCreateEndpoint} className="gap-2">
           <Plus className="h-4 w-4" />
@@ -283,19 +283,19 @@ export default function ApiEndpoints() {
 
       {/* Endpoints Grid */}
       {endpoints.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <div className="rounded-full bg-slate-100 p-4 mb-4">
-              <Plus className="h-8 w-8 text-slate-400" />
+        <Card className="border-2 border-dashed border-slate-300">
+          <CardContent className="flex flex-col items-center justify-center py-20">
+            <div className="rounded-full bg-gradient-to-br from-blue-100 to-purple-100 p-6 mb-6">
+              <Plus className="h-10 w-10 text-blue-600" />
             </div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">
+            <h3 className="text-xl font-semibold text-slate-900 mb-2">
               No endpoints created yet
             </h3>
-            <p className="text-sm text-slate-600 mb-6 text-center max-w-md">
-              Create your first API endpoint to start testing and monitoring your APIs
+            <p className="text-sm text-slate-600 mb-8 text-center max-w-md">
+              Create your first API endpoint to start testing and monitoring your APIs with real-time analytics
             </p>
-            <Button onClick={handleCreateEndpoint} className="gap-2">
-              <Plus className="h-4 w-4" />
+            <Button onClick={handleCreateEndpoint} className="gap-2" size="lg">
+              <Plus className="h-5 w-5" />
               Create Your First Endpoint
             </Button>
           </CardContent>
@@ -303,11 +303,11 @@ export default function ApiEndpoints() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {endpoints.map(endpoint => (
-            <Card key={endpoint.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader>
+            <Card key={endpoint.id} className="hover:shadow-xl transition-all duration-200 border-slate-200">
+              <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
-                    <CardTitle className="text-lg mb-2 truncate">{endpoint.name}</CardTitle>
+                    <CardTitle className="text-lg mb-3 truncate text-slate-900">{endpoint.name}</CardTitle>
                     <Badge className={getMethodColor(endpoint.method)}>
                       {endpoint.method}
                     </Badge>
@@ -315,8 +315,8 @@ export default function ApiEndpoints() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <p className="text-xs text-slate-500 mb-1">URL</p>
+                <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+                  <p className="text-xs text-slate-500 mb-1 font-medium">URL</p>
                   <p className="text-sm font-mono text-slate-700 truncate" title={endpoint.url}>
                     {endpoint.url}
                   </p>
@@ -324,12 +324,12 @@ export default function ApiEndpoints() {
                 <div className="flex items-center gap-2 text-xs text-slate-500">
                   <span>Created {endpoint.createdAt.toLocaleDateString()}</span>
                 </div>
-                <div className="flex gap-2 pt-2">
+                <div className="flex gap-2 pt-2 border-t border-slate-100">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setSelectedEndpoint(endpoint)}
-                    className="flex-1 gap-2"
+                    className="flex-1 gap-2 hover:bg-blue-50 hover:border-blue-200"
                   >
                     <Eye className="h-4 w-4" />
                     View
@@ -339,7 +339,7 @@ export default function ApiEndpoints() {
                     size="sm"
                     onClick={() => handleTestEndpoint(endpoint)}
                     disabled={isTesting === endpoint.id}
-                    className="gap-2"
+                    className="gap-2 hover:bg-green-50 hover:border-green-200"
                   >
                     <Play className="h-4 w-4" />
                     {isTesting === endpoint.id ? 'Testing...' : 'Test'}
