@@ -1,7 +1,7 @@
-import { useState } from 'react';
 import type { User } from '../types';
 import ApiEndpoints from './ApiEndpoints';
-import Webhooks from './Webhooks';
+import { Button } from './ui/button';
+import { LogOut } from 'lucide-react';
 
 interface DashboardProps {
   user: User;
@@ -9,81 +9,39 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ user, onLogout }: DashboardProps) {
-  const [activeTab, setActiveTab] = useState<'endpoints' | 'webhooks'>('endpoints');
-
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f7fafc' }}>
-      <div style={{ 
-        backgroundColor: 'white', 
-        borderBottom: '1px solid #e2e8f0', 
-        padding: '16px 24px' 
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: '#3182ce' }}>PingPad</h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <span>Welcome, {user.name}</span>
-            <button 
-              onClick={onLogout}
-              style={{
-                backgroundColor: 'transparent',
-                color: '#666',
-                padding: '6px 12px',
-                border: '1px solid #e2e8f0',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '14px'
-              }}
-            >
-              Logout
-            </button>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+      {/* Header */}
+      <header className="bg-white border-b border-slate-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
+                PingPad
+              </h1>
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-slate-600">
+                Welcome, <span className="font-semibold text-slate-900">{user.name}</span>
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onLogout}
+                className="gap-2"
+              >
+                <LogOut className="h-4 w-4" />
+                Logout
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
+      </header>
 
-      <div style={{ 
-        backgroundColor: 'white', 
-        borderBottom: '1px solid #e2e8f0', 
-        padding: '0 24px' 
-      }}>
-        <div style={{ display: 'flex', gap: '32px' }}>
-          <button
-            onClick={() => setActiveTab('endpoints')}
-            style={{
-              backgroundColor: activeTab === 'endpoints' ? '#3182ce' : 'transparent',
-              color: activeTab === 'endpoints' ? 'white' : '#666',
-              padding: '12px 16px',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: '16px',
-              fontWeight: activeTab === 'endpoints' ? 'bold' : 'normal'
-            }}
-          >
-            API Endpoints
-          </button>
-          <button
-            onClick={() => setActiveTab('webhooks')}
-            style={{
-              backgroundColor: activeTab === 'webhooks' ? '#3182ce' : 'transparent',
-              color: activeTab === 'webhooks' ? 'white' : '#666',
-              padding: '12px 16px',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: '16px',
-              fontWeight: activeTab === 'webhooks' ? 'bold' : 'normal'
-            }}
-          >
-            Webhooks
-          </button>
-        </div>
-      </div>
-
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px 20px' }}>
-        {activeTab === 'endpoints' ? (
-          <ApiEndpoints />
-        ) : (
-          <Webhooks user={user} />
-        )}
-      </div>
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <ApiEndpoints />
+      </main>
     </div>
   );
-} 
+}
