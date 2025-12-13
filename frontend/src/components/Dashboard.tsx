@@ -1,7 +1,11 @@
 import { useState } from 'react';
+import { Menu } from 'lucide-react';
 import type { User } from '../types';
+import Sidebar from './Sidebar';
+import DashboardView from './DashboardView';
 import ApiEndpoints from './ApiEndpoints';
-import Webhooks from './Webhooks';
+import SettingsView from './SettingsView';
+import { Button } from './ui/button';
 
 interface DashboardProps {
   user: User;
@@ -9,81 +13,61 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ user, onLogout }: DashboardProps) {
-  const [activeTab, setActiveTab] = useState<'endpoints' | 'webhooks'>('endpoints');
+  const [activeView, setActiveView] = useState('dashboard');
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+
+  const renderView = () => {
+    switch (activeView) {
+      case 'dashboard':
+        return <DashboardView />;
+      case 'endpoints':
+        return <ApiEndpoints />;
+      case 'settings':
+        return <SettingsView />;
+      default:
+        return <DashboardView />;
+    }
+  };
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f7fafc' }}>
-      <div style={{ 
-        backgroundColor: 'white', 
-        borderBottom: '1px solid #e2e8f0', 
-        padding: '16px 24px' 
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: '#3182ce' }}>PingPad</h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <span>Welcome, {user.name}</span>
-            <button 
-              onClick={onLogout}
-              style={{
-                backgroundColor: 'transparent',
-                color: '#666',
-                padding: '6px 12px',
-                border: '1px solid #e2e8f0',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '14px'
-              }}
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+      {/* Sidebar */}
+      <Sidebar
+        activeView={activeView}
+        onViewChange={setActiveView}
+        onLogout={onLogout}
+        userName={user.name}
+        isMobileOpen={isMobileOpen}
+        onMobileToggle={() => setIsMobileOpen(!isMobileOpen)}
+      />
+
+      {/* Main Content Area */}
+      <div className="lg:pl-64">
+        {/* Mobile Header */}
+        <header className="lg:hidden bg-white border-b border-slate-200 shadow-sm sticky top-0 z-30">
+          <div className="flex items-center justify-between px-4 h-16">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-sm">P</span>
+              </div>
+              <span className="text-xl font-bold text-slate-900">PingPad</span>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsMobileOpen(!isMobileOpen)}
+              className="lg:hidden"
             >
-              Logout
-            </button>
+              <Menu className="h-6 w-6" />
+            </Button>
           </div>
-        </div>
-      </div>
+        </header>
 
-      <div style={{ 
-        backgroundColor: 'white', 
-        borderBottom: '1px solid #e2e8f0', 
-        padding: '0 24px' 
-      }}>
-        <div style={{ display: 'flex', gap: '32px' }}>
-          <button
-            onClick={() => setActiveTab('endpoints')}
-            style={{
-              backgroundColor: activeTab === 'endpoints' ? '#3182ce' : 'transparent',
-              color: activeTab === 'endpoints' ? 'white' : '#666',
-              padding: '12px 16px',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: '16px',
-              fontWeight: activeTab === 'endpoints' ? 'bold' : 'normal'
-            }}
-          >
-            API Endpoints
-          </button>
-          <button
-            onClick={() => setActiveTab('webhooks')}
-            style={{
-              backgroundColor: activeTab === 'webhooks' ? '#3182ce' : 'transparent',
-              color: activeTab === 'webhooks' ? 'white' : '#666',
-              padding: '12px 16px',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: '16px',
-              fontWeight: activeTab === 'webhooks' ? 'bold' : 'normal'
-            }}
-          >
-            Webhooks
-          </button>
-        </div>
-      </div>
-
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px 20px' }}>
-        {activeTab === 'endpoints' ? (
-          <ApiEndpoints />
-        ) : (
-          <Webhooks user={user} />
-        )}
+        {/* Content */}
+        <main className="p-4 sm:p-6 lg:p-8">
+          {renderView()}
+        </main>
       </div>
     </div>
   );
-} 
+}
