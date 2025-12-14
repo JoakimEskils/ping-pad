@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"pingpad-api-testing-engine/internal/models"
-	"pingpad-api-testing-engine/pkg/testing"
+	testingEngine "pingpad-api-testing-engine/pkg/testing"
 	pb "pingpad-api-testing-engine/proto"
 )
 
@@ -22,7 +22,7 @@ func TestTestEndpoint_Success(t *testing.T) {
 		FollowRedirects:    true,
 	}
 
-	engine := testing.NewEngine(config)
+	engine := testingEngine.NewEngine(config)
 	server := NewServer(engine, &models.Config{Testing: *config})
 
 	req := &pb.TestRequest{
@@ -74,7 +74,7 @@ func TestTestEndpoint_InvalidTimeout(t *testing.T) {
 		FollowRedirects:    true,
 	}
 
-	engine := testing.NewEngine(config)
+	engine := testingEngine.NewEngine(config)
 	server := NewServer(engine, &models.Config{Testing: *config})
 
 	req := &pb.TestRequest{
@@ -115,7 +115,7 @@ func TestTestEndpoint_WithBody(t *testing.T) {
 		FollowRedirects:    true,
 	}
 
-	engine := testing.NewEngine(config)
+	engine := testingEngine.NewEngine(config)
 	server := NewServer(engine, &models.Config{Testing: *config})
 
 	req := &pb.TestRequest{
@@ -159,7 +159,7 @@ func TestTestBatch(t *testing.T) {
 		FollowRedirects:    true,
 	}
 
-	engine := testing.NewEngine(config)
+	engine := testingEngine.NewEngine(config)
 	server := NewServer(engine, &models.Config{Testing: *config})
 
 	batchReq := &pb.BatchTestRequest{
@@ -223,7 +223,7 @@ func TestGetHealth(t *testing.T) {
 		FollowRedirects:    true,
 	}
 
-	engine := testing.NewEngine(config)
+	engine := testingEngine.NewEngine(config)
 	server := NewServer(engine, &models.Config{Testing: *config})
 
 	req := &pb.HealthRequest{}
@@ -259,7 +259,7 @@ func TestGetMetrics(t *testing.T) {
 		FollowRedirects:    true,
 	}
 
-	engine := testing.NewEngine(config)
+	engine := testingEngine.NewEngine(config)
 	server := NewServer(engine, &models.Config{Testing: *config})
 
 	req := &pb.MetricsRequest{}
