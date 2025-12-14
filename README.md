@@ -5,6 +5,7 @@ A SaaS tool for testing REST API endpoints and logging webhooks. Built with Spri
 ## Table of Contents
 
 - [Quick Start](#quick-start)
+- [Screenshots](#screenshots)
 - [Prerequisites](#prerequisites)
 - [Local Development](#local-development)
 - [Project Structure](#project-structure)
@@ -30,6 +31,20 @@ A SaaS tool for testing REST API endpoints and logging webhooks. Built with Spri
    - Backend API: http://localhost:8080
    - API Testing Engine: http://localhost:8081
    - Nginx Gateway: http://localhost:80
+
+## Screenshots
+
+### Dashboard
+
+![Dashboard](public/dashboard.png)
+
+The main dashboard provides an overview of all API endpoints, their status, and quick access to testing and analytics.
+
+### Endpoint Analytics
+
+![Endpoint Analytics](public/endpoint.png)
+
+Detailed analytics view showing response times, success rates, status code distribution, and request volume over time for individual endpoints.
 
 ## Prerequisites
 
