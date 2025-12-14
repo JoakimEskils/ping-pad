@@ -1,6 +1,7 @@
 package com.pingpad.modules.api_testing.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.pingpad.modules.shared.interceptors.CorrelationIdInterceptor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -12,6 +13,12 @@ import org.springframework.web.client.RestTemplate;
  */
 @Configuration
 public class GoTestingConfig {
+
+    private final CorrelationIdInterceptor correlationIdInterceptor;
+
+    public GoTestingConfig(CorrelationIdInterceptor correlationIdInterceptor) {
+        this.correlationIdInterceptor = correlationIdInterceptor;
+    }
 
     @Bean
     public RestTemplate restTemplate(ObjectMapper objectMapper) {
@@ -26,6 +33,8 @@ public class GoTestingConfig {
         restTemplate.getMessageConverters().removeIf(converter -> 
             converter instanceof MappingJackson2HttpMessageConverter);
         restTemplate.getMessageConverters().add(new MappingJackson2HttpMessageConverter(objectMapper));
+        // Add correlation ID interceptor to propagate trace IDs to Go service
+        restTemplate.getInterceptors().add(correlationIdInterceptor);
         return restTemplate;
     }
 }

@@ -33,8 +33,9 @@ func main() {
 	// Setup routes
 	mux := handler.SetupRoutes()
 
-	// Add CORS middleware
-	handlerWithCORS := addCORS(mux)
+	// Add middleware (correlation ID first, then CORS)
+	handlerWithMiddleware := handler.AddCorrelationIDMiddleware(mux)
+	handlerWithCORS := addCORS(handlerWithMiddleware)
 
 	// Create server
 	server := &http.Server{
@@ -75,7 +76,7 @@ func addCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Correlation-ID")
 
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)

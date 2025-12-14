@@ -4,7 +4,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { setToken } from '../utils/auth';
+import { setToken, getCorrelationHeaders } from '../utils/auth';
 
 interface LoginFormProps {
   onLoginSuccess: () => void;
@@ -31,9 +31,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
         // Register new user
         const response = await fetch(`${backendUrl}/api/auth/register`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: getCorrelationHeaders(),
           credentials: 'include',
           body: JSON.stringify({ email, name, password }),
         });
@@ -58,9 +56,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
   const handleLogin = async (loginEmail: string, loginPassword: string) => {
     const response = await fetch(`${backendUrl}/api/auth/login`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getCorrelationHeaders(),
       credentials: 'include',
       body: JSON.stringify({ email: loginEmail, password: loginPassword }),
     });
@@ -89,9 +85,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
     try {
       const response = await fetch(`${backendUrl}/api/auth/login-as-test`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getCorrelationHeaders(),
         credentials: 'include',
       });
 

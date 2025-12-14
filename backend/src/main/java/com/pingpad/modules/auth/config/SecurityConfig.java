@@ -59,6 +59,8 @@ public class SecurityConfig {
                 .requestMatchers("/", "/api/auth/register", "/api/auth/login", "/api/auth/login-as-test", "/error").permitAll()
                 .requestMatchers("/api/auth/logout", "/api/user/me").authenticated()
                 .anyRequest().authenticated())
+            // CorrelationIdFilter is automatically registered as a servlet filter by Spring Boot
+            // and will run before Spring Security filters
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

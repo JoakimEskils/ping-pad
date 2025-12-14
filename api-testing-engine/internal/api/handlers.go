@@ -3,7 +3,6 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
@@ -88,18 +87,18 @@ func (h *Handler) TestEndpoint(w http.ResponseWriter, r *http.Request) {
 	// Execute test with context from request (respects client disconnects)
 	ctx := r.Context()
 	
-	// Log the start of test execution
-	log.Printf("Executing test for endpoint %s (%s %s)", req.EndpointID, req.Method, req.URL)
+	// Log the start of test execution with correlation ID
+	logWithCorrelationID(ctx, "Executing test for endpoint %s (%s %s)", req.EndpointID, req.Method, req.URL)
 	startTime := time.Now()
 	
 	result := h.engine.ExecuteTest(ctx, req)
 	
 	executionTime := time.Since(startTime)
-	log.Printf("Test completed for endpoint %s in %v", req.EndpointID, executionTime)
+	logWithCorrelationID(ctx, "Test completed for endpoint %s in %v", req.EndpointID, executionTime)
 
 	// Check if context was cancelled (client disconnected)
 	if ctx.Err() != nil {
-		log.Printf("Request context cancelled for endpoint %s: %v", req.EndpointID, ctx.Err())
+		logWithCorrelationID(ctx, "Request context cancelled for endpoint %s: %v", req.EndpointID, ctx.Err())
 		http.Error(w, "Request cancelled: "+ctx.Err().Error(), http.StatusRequestTimeout)
 		return
 	}
@@ -108,7 +107,7 @@ func (h *Handler) TestEndpoint(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(result); err != nil {
 		// Log encoding error but don't fail - response may have already been sent
-		log.Printf("Error encoding response for endpoint %s: %v", req.EndpointID, err)
+		logWithCorrelationID(ctx, "Error encoding response for endpoint %s: %v", req.EndpointID, err)
 	}
 }
 
@@ -289,4 +288,9 @@ func (h *Handler) SetupRoutes() *http.ServeMux {
 	mux.HandleFunc("/api/v1/metrics", h.GetMetrics)
 	
 	return mux
+}
+
+// AddCorrelationIDMiddleware wraps the mux with correlation ID middleware
+func (h *Handler) AddCorrelationIDMiddleware(mux *http.ServeMux) http.Handler {
+	return correlationIDMiddleware(mux)
 }
