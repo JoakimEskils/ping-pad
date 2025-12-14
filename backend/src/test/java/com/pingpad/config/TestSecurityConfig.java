@@ -4,6 +4,8 @@ import com.pingpad.modules.auth.filters.JwtAuthenticationFilter;
 import com.pingpad.modules.auth.services.CustomUserDetailsService;
 import com.pingpad.modules.auth.services.LoginRateLimiter;
 import com.pingpad.modules.auth.utils.JwtTokenUtil;
+import com.pingpad.modules.eventsourcing.core.EventStore;
+import com.pingpad.modules.eventsourcing.service.PostgresEventStore;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Bean;
@@ -48,6 +50,11 @@ public class TestSecurityConfig {
 
     @MockBean
     private LoginRateLimiter loginRateLimiter;
+
+    // Mock EventStore to avoid PostgreSQL-specific SQL in H2 tests
+    // This prevents PostgresEventStore from trying to use pg_current_xact_id() which doesn't exist in H2
+    @MockBean
+    private EventStore eventStore;
 
     @Bean
     @Primary
