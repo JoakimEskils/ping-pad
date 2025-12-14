@@ -10,6 +10,7 @@ A SaaS tool for testing REST API endpoints and logging webhooks — built with S
   - [Run the project with Docker Compose](#run-the-project-with-docker-compose)
 - [Architecture & Data Flow](#architecture--data-flow)
   - [How it works](#how-it-works)
+- [Nginx](#nginx)
 - [Modular Monolith](#modular-monolith)
   - [What is a Modular Monolith?](#what-is-a-modular-monolith)
   - [Benefits](#benefits)
@@ -20,6 +21,7 @@ A SaaS tool for testing REST API endpoints and logging webhooks — built with S
   - [Database Schema](#database-schema)
   - [Usage Example](#usage-example)
   - [Configuration](#configuration)
+- [Correlation ID (Trace ID)](#correlation-id-trace-id)
 - [Database Models](#database-models)
   - [Core Application Tables](#core-application-tables)
   - [Event Sourcing Tables](#event-sourcing-tables)
@@ -106,6 +108,33 @@ This will build and start two containers:
 7. **Spring Boot** returns the result to frontend
 
 The Go Testing Engine provides high-performance HTTP testing with excellent concurrency, while Spring Boot handles business logic and data persistence via Postgres DB.
+
+## Nginx
+
+PingPad uses **Nginx** as a reverse proxy and API gateway to provide a unified entry point for all services. Nginx sits in front of the application stack and handles several critical responsibilities:
+
+### Why Nginx?
+
+1. **Single Entry Point**: Nginx provides a single port (80) that routes requests to the appropriate backend service (frontend, Spring Boot backend, or Go testing engine) based on URL patterns. This simplifies client-side configuration and provides a clean API surface.
+
+2. **Rate Limiting**: Nginx implements rate limiting to protect backend services from abuse and ensure fair resource usage:
+   - **Backend API** (`/api/`): Limited to 10 requests per second with burst capacity of 20
+   - **Go Testing Engine** (`/go-api/`): Limited to 50 requests per second with burst capacity of 100 (higher limit due to testing workload characteristics)
+
+3. **Load Balancing**: Nginx uses the `least_conn` load balancing algorithm for upstream services, distributing requests based on the number of active connections. This helps balance load across multiple service instances if scaled horizontally.
+
+4. **Request Routing**: Nginx intelligently routes requests:
+   - `/` → Frontend (React application)
+   - `/api/` → Spring Boot backend
+   - `/go-api/` → Go API Testing Engine (with URL rewriting to `/api/v1/`)
+
+5. **Header Management**: Nginx forwards important headers like `X-Real-IP`, `X-Forwarded-For`, and `X-Forwarded-Proto` to backend services, ensuring they have accurate client information for logging, security, and protocol handling.
+
+6. **Health Checks**: Nginx provides a lightweight health check endpoint (`/health`) that can be used by orchestration systems and monitoring tools.
+
+7. **CORS and Security**: While CORS is also handled at the application level, Nginx can provide an additional layer of security headers and CORS configuration if needed.
+
+This architecture pattern is common in microservices and modular monolith deployments, where a reverse proxy provides infrastructure concerns (routing, rate limiting, SSL termination) while allowing application services to focus on business logic.
 
 ## Modular Monolith
 
@@ -206,6 +235,74 @@ event-sourcing:
 ```
 
 For more details, see the [Event Sourcing README](backend/src/main/java/com/pingpad/modules/eventsourcing/README.md).
+
+## Correlation ID (Trace ID)
+
+PingPad implements **correlation IDs** (also known as trace IDs) to enable end-to-end request tracing across the entire application stack. This is a best practice for distributed systems and modular monoliths, allowing you to trace a single request as it flows through multiple services and components.
+
+### What is a Correlation ID?
+
+A correlation ID is a unique identifier (UUID) that is generated at the entry point of a request and propagated through all service calls, database operations, and log entries. This allows you to:
+
+- **Trace Requests**: Follow a single request from frontend → backend → Go service → database
+- **Debug Issues**: Quickly find all logs related to a specific request using the correlation ID
+- **Monitor Performance**: Track request latency across service boundaries
+- **Audit Trails**: Correlate events across different services for the same user action
+
+### Implementation
+
+The correlation ID implementation spans all layers of the application:
+
+#### Frontend (React)
+- Generates a UUID v4 correlation ID on first request
+- Stores correlation ID in `sessionStorage` (persists for browser session)
+- Automatically includes `X-Correlation-ID` header in all API requests
+- Uses the same correlation ID for all requests within a browser session
+
+#### Backend (Spring Boot)
+- **CorrelationIdFilter**: Extracts correlation ID from `X-Correlation-ID` or `X-Trace-ID` headers, or generates a new UUID if not present
+- **MDC Integration**: Stores correlation ID in Mapped Diagnostic Context (MDC) for automatic inclusion in all log statements
+- **Response Headers**: Adds correlation ID to response headers so clients can track their requests
+- **RestTemplate Interceptor**: Automatically propagates correlation ID to downstream services (Go testing engine)
+
+#### Go Service
+- **Middleware**: Extracts correlation ID from request headers and stores it in request context
+- **Logging**: All log statements include correlation ID prefix: `[correlation-id] message`
+- **Response Headers**: Echoes correlation ID back in response headers
+
+#### Logging
+- All application logs include the correlation ID in the format: `[correlationId] log message`
+- Logback configuration includes `%X{correlationId:-}` in the log pattern
+- This makes it easy to filter logs by correlation ID: `grep "abc-123-def" application.log`
+
+### Flow Example
+
+```
+1. Frontend generates correlation ID: "550e8400-e29b-41d4-a716-446655440000"
+2. Frontend sends request with header: X-Correlation-ID: 550e8400-e29b-41d4-a716-446655440000
+3. Spring Boot extracts correlation ID, adds to MDC
+4. Spring Boot logs: [550e8400-e29b-41d4-a716-446655440000] Processing request...
+5. Spring Boot calls Go service with X-Correlation-ID header
+6. Go service logs: [550e8400-e29b-41d4-a716-446655440000] Executing test...
+7. All logs for this request share the same correlation ID
+```
+
+### Benefits
+
+- **Easier Debugging**: Find all logs for a specific request with a single search
+- **Performance Analysis**: Track request latency across service boundaries
+- **Error Tracking**: Correlate errors across services to understand failure chains
+- **Production Support**: Quickly investigate user-reported issues using correlation IDs from error messages
+- **Best Practice**: Follows industry standards for observability in distributed systems
+
+### Usage
+
+Correlation IDs are automatically handled by the framework. No manual code is required in business logic - the correlation ID flows through automatically via filters, interceptors, and MDC.
+
+To view correlation IDs:
+- Check response headers: `X-Correlation-ID`
+- Search application logs: `grep "correlation-id" application.log`
+- Frontend can access correlation ID from response headers if needed
 
 ## Database Models
 
