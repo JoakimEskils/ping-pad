@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { Menu } from 'lucide-react';
 import type { User } from '../types';
 import Sidebar from './Sidebar';
@@ -13,28 +14,44 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ user, onLogout }: DashboardProps) {
-  const [activeView, setActiveView] = useState('dashboard');
+  const navigate = useNavigate();
+  const location = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
-  const renderView = () => {
-    switch (activeView) {
+  // Get active view from path
+  const getActiveView = () => {
+    if (location.pathname.startsWith('/settings')) return 'settings';
+    if (location.pathname.startsWith('/endpoints')) return 'endpoints';
+    return 'dashboard';
+  };
+
+  const handleViewChange = (view: string) => {
+    switch (view) {
       case 'dashboard':
-        return <DashboardView />;
+        navigate('/dashboard');
+        break;
       case 'endpoints':
-        return <ApiEndpoints />;
+        navigate('/endpoints');
+        break;
       case 'settings':
-        return <SettingsView />;
-      default:
-        return <DashboardView />;
+        navigate('/settings');
+        break;
     }
   };
+
+  // Redirect root to dashboard
+  useEffect(() => {
+    if (location.pathname === '/') {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [location.pathname, navigate]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Sidebar */}
       <Sidebar
-        activeView={activeView}
-        onViewChange={setActiveView}
+        activeView={getActiveView()}
+        onViewChange={handleViewChange}
         onLogout={onLogout}
         userName={user.name}
         isMobileOpen={isMobileOpen}
@@ -65,7 +82,12 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
 
         {/* Content */}
         <main className="p-4 sm:p-6 lg:p-8">
-          {renderView()}
+          <Routes>
+            <Route path="/dashboard" element={<DashboardView />} />
+            <Route path="/endpoints" element={<ApiEndpoints />} />
+            <Route path="/settings" element={<SettingsView user={user} />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
         </main>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -10,6 +11,7 @@ interface LoginFormProps {
 }
 
 export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
+  const navigate = useNavigate();
   const [isRegistering, setIsRegistering] = useState(false);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
@@ -75,8 +77,9 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
       setToken(data.token);
     }
 
-    // Login successful, check auth status
+    // Login successful, check auth status and navigate
     onLoginSuccess();
+    navigate('/dashboard');
   };
 
   const handleTestUserLogin = async () => {

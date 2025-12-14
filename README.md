@@ -83,3 +83,75 @@ This will build and start two containers:
 7. **Spring Boot** returns the result to frontend
 
 The Go Testing Engine provides high-performance HTTP testing with excellent concurrency, while Spring Boot handles business logic and data persistence via Postgres DB.
+
+## Event Sourcing
+
+PingPad uses **PostgreSQL-based event sourcing** following the pattern described in [postgresql-event-sourcing](https://github.com/eugene-khyst/postgresql-event-sourcing). This design pattern provides a complete audit trail, time-travel capabilities, and enables CQRS (Command Query Responsibility Segregation).
+
+### What is Event Sourcing?
+
+Instead of storing only the current state of entities, event sourcing stores all changes as a sequence of immutable events. The current state is reconstructed by replaying events. This provides:
+
+- **Complete Audit Trail**: Every change is recorded as an event
+- **Time Travel**: Reconstruct state at any point in time
+- **Event Replay**: Rebuild projections from events
+- **Scalability**: Separate read and write models (CQRS)
+
+### Implementation Details
+
+The event sourcing infrastructure includes:
+
+- **Event Store**: PostgreSQL-based append-only event store (`es_event` table)
+- **Aggregates**: Domain objects that manage state through events (e.g., `ApiEndpointAggregate`)
+- **Domain Events**: Immutable events representing state changes (e.g., `ApiEndpointCreatedEvent`)
+- **Projections**: Read models for efficient querying (e.g., `ApiEndpointProjection`)
+- **Event Handlers**: Synchronous handlers update projections, async handlers process integration events
+
+### Database Schema
+
+The event store uses the following tables:
+
+- `es_aggregate`: Tracks aggregate versions for optimistic concurrency control
+- `es_event`: Append-only event store with transaction IDs for reliable processing
+- `es_aggregate_snapshot`: Optional snapshots for performance optimization
+- `es_event_subscription`: Tracks processed events for asynchronous handlers
+
+### Usage Example
+
+```java
+// Create an API endpoint using event sourcing
+ApiEndpointService endpointService;
+UUID endpointId = endpointService.createEndpoint(
+    "My API", 
+    "https://api.example.com", 
+    "GET", 
+    null, 
+    null, 
+    userId
+);
+
+// Query from read model (projection)
+ApiEndpointProjection endpoint = endpointService.getEndpoint(endpointId);
+
+// Get full event history
+List<StoredEvent> history = endpointService.getEventHistory(endpointId);
+```
+
+### Configuration
+
+Event sourcing can be configured in `application.yml`:
+
+```yaml
+event-sourcing:
+  snapshotting:
+    ApiEndpoint:
+      enabled: false
+      nth-event: 10
+  subscriptions:
+    type: polling  # or postgres-channel
+  polling-subscriptions:
+    polling-initial-delay: PT1S
+    polling-interval: PT1S
+```
+
+For more details, see the [Event Sourcing README](backend/src/main/java/com/pingpad/modules/eventsourcing/README.md).

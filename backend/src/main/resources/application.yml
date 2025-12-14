@@ -1,0 +1,14 @@
+event-sourcing:
+  snapshotting:
+    # Snapshotting configuration per aggregate type
+    # Create a snapshot on every nth event
+    ApiEndpoint:
+      enabled: false
+      nth-event: 10
+  subscriptions:
+    # Options: polling, postgres-channel
+    # Default to polling for simplicity
+    type: polling
+  polling-subscriptions:
+    polling-initial-delay: PT1S
+    polling-interval: PT1S
