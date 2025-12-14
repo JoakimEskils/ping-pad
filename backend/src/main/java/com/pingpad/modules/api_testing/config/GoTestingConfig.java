@@ -16,8 +16,11 @@ public class GoTestingConfig {
     @Bean
     public RestTemplate restTemplate(ObjectMapper objectMapper) {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        // Connection timeout: 5 seconds (time to establish connection)
         factory.setConnectTimeout(5000);
-        factory.setReadTimeout(30000);
+        // Read timeout: 35 seconds (30s for test + 5s buffer for processing)
+        // The Go engine has a 30s default timeout for the actual HTTP test
+        factory.setReadTimeout(35000);
         RestTemplate restTemplate = new RestTemplate(factory);
         // Configure to use the application's ObjectMapper for proper JSON serialization
         restTemplate.getMessageConverters().removeIf(converter -> 

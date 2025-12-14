@@ -117,11 +117,26 @@ public class ApiEndpointController {
      * Update an existing endpoint.
      */
     @PutMapping("/{id}")
-    public ResponseEntity<ApiEndpointProjection> updateEndpoint(
+    public ResponseEntity<?> updateEndpoint(
             @PathVariable String id,
-            @RequestBody UpdateEndpointRequest request) {
+            @RequestBody UpdateEndpointRequest request,
+            Authentication authentication) {
         try {
             UUID endpointId = UUID.fromString(id);
+            
+            // Validate request
+            if (request.name == null || request.name.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Name is required"));
+            }
+            if (request.url == null || request.url.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                    .body(Map.of("error", "URL is required"));
+            }
+            if (request.method == null || request.method.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Method is required"));
+            }
             
             // Convert headers map to string
             String headersStr = null;
@@ -133,9 +148,9 @@ public class ApiEndpointController {
             
             apiEndpointService.updateEndpoint(
                 endpointId,
-                request.name,
-                request.url,
-                request.method,
+                request.name.trim(),
+                request.url.trim(),
+                request.method.trim(),
                 headersStr,
                 request.body
             );
@@ -143,10 +158,14 @@ public class ApiEndpointController {
             ApiEndpointProjection endpoint = apiEndpointService.getEndpoint(endpointId);
             return ResponseEntity.ok(endpoint);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
+            log.error("Validation error updating endpoint: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                .body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
             log.error("Error updating endpoint", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            String errorMessage = e.getMessage() != null ? e.getMessage() : "Internal server error";
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", errorMessage, "details", e.getClass().getSimpleName()));
         }
     }
 

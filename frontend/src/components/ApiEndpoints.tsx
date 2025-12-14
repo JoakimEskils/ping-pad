@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Play, Eye, ChevronDown, ChevronRight, Calendar, Clock, X, AlertCircle, CheckCircle2, Info } from 'lucide-react';
+import { Plus, Trash2, Play, Eye, ChevronDown, ChevronRight, Calendar, Clock, X, AlertCircle, CheckCircle2, Info, Edit } from 'lucide-react';
 import type { ApiEndpoint } from '../types';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
@@ -16,6 +16,7 @@ import { getAuthHeaders } from '../utils/auth';
 export default function ApiEndpoints() {
   const [endpoints, setEndpoints] = useState<ApiEndpoint[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingEndpointId, setEditingEndpointId] = useState<string | null>(null);
   const [selectedEndpoint, setSelectedEndpoint] = useState<ApiEndpoint | null>(null);
   const [expandedEndpoints, setExpandedEndpoints] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
@@ -148,9 +149,36 @@ export default function ApiEndpoints() {
   };
 
   const handleCreateEndpoint = () => {
+    setEditingEndpointId(null);
     setDialogError(null);
     setErrorMessage(null);
     setSuccessMessage(null);
+    setNewEndpoint({ name: '', url: '', method: 'GET', headers: '', body: '' });
+    setSelectedApiKeyId('');
+    setApiKeyHeaderName('Authorization');
+    setIsModalOpen(true);
+  };
+
+  const handleEditEndpoint = (endpoint: ApiEndpoint) => {
+    setEditingEndpointId(endpoint.id);
+    setDialogError(null);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    
+    // Convert headers object to string format
+    const headersStr = Object.entries(endpoint.headers || {})
+      .map(([key, value]) => `${key}: ${value}`)
+      .join('\n');
+    
+    setNewEndpoint({
+      name: endpoint.name,
+      url: endpoint.url,
+      method: endpoint.method as any,
+      headers: headersStr,
+      body: endpoint.body || ''
+    });
+    setSelectedApiKeyId('');
+    setApiKeyHeaderName('Authorization');
     setIsModalOpen(true);
   };
 
@@ -165,6 +193,8 @@ export default function ApiEndpoints() {
     setDialogError(null);
     setErrorMessage(null);
     setSuccessMessage(null);
+
+    const isEditing = editingEndpointId !== null;
 
     const headers: Record<string, string> = {};
     if (newEndpoint.headers) {
@@ -182,8 +212,12 @@ export default function ApiEndpoints() {
 
     try {
       const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8080';
-      const response = await fetch(`${backendUrl}/api/endpoints`, {
-        method: 'POST',
+      const url = isEditing 
+        ? `${backendUrl}/api/endpoints/${editingEndpointId}`
+        : `${backendUrl}/api/endpoints`;
+      
+      const response = await fetch(url, {
+        method: isEditing ? 'PUT' : 'POST',
         headers: getAuthHeaders(),
         credentials: 'include',
         body: JSON.stringify({
@@ -221,13 +255,16 @@ export default function ApiEndpoints() {
         setSelectedApiKeyId('');
         setApiKeyHeaderName('Authorization');
         setIsModalOpen(false);
-        setSuccessMessage('Endpoint created successfully!');
+        setEditingEndpointId(null);
+        setSuccessMessage(isEditing ? 'Endpoint updated successfully!' : 'Endpoint created successfully!');
         setDialogError(null);
         setErrorMessage(null);
+        // Reload endpoints to show updated data
+        loadEndpoints();
         // Clear success message after 5 seconds
         setTimeout(() => setSuccessMessage(null), 5000);
       } else {
-        let errorMsg = `Failed to create endpoint (${response.status} ${response.statusText})`;
+        let errorMsg = `Failed to ${isEditing ? 'update' : 'create'} endpoint (${response.status} ${response.statusText})`;
         try {
           const errorData = await response.json();
           if (errorData.error) {
@@ -249,8 +286,8 @@ export default function ApiEndpoints() {
         setSuccessMessage(null);
       }
     } catch (error) {
-      console.error('Error creating endpoint:', error);
-      setDialogError('Failed to create endpoint. Please try again.');
+      console.error(`Error ${isEditing ? 'updating' : 'creating'} endpoint:`, error);
+      setDialogError(`Failed to ${isEditing ? 'update' : 'create'} endpoint. Please try again.`);
       setErrorMessage(null);
       setSuccessMessage(null);
     }
@@ -567,6 +604,18 @@ export default function ApiEndpoints() {
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
+                            handleEditEndpoint(endpoint);
+                          }}
+                          className="h-8 w-8 p-0"
+                          title="Edit Endpoint"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setSelectedEndpoint(endpoint);
                           }}
                           className="h-8 w-8 p-0"
@@ -674,6 +723,18 @@ export default function ApiEndpoints() {
                               size="sm"
                               onClick={(e) => {
                                 e.stopPropagation();
+                                handleEditEndpoint(endpoint);
+                              }}
+                              className="gap-2"
+                            >
+                              <Edit className="h-4 w-4" />
+                              Edit
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 setSelectedEndpoint(endpoint);
                               }}
                               className="gap-2"
@@ -711,8 +772,10 @@ export default function ApiEndpoints() {
         setIsModalOpen(open);
         if (!open) {
           // Reset form when closing
+          setEditingEndpointId(null);
           setSelectedApiKeyId('');
           setApiKeyHeaderName('Authorization');
+          setNewEndpoint({ name: '', url: '', method: 'GET', headers: '', body: '' });
           setDialogError(null);
           setErrorMessage(null);
           setSuccessMessage(null);
@@ -720,9 +783,9 @@ export default function ApiEndpoints() {
       }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Create API Endpoint</DialogTitle>
+            <DialogTitle>{editingEndpointId ? 'Edit API Endpoint' : 'Create API Endpoint'}</DialogTitle>
             <DialogDescription>
-              Add a new API endpoint to monitor and test
+              {editingEndpointId ? 'Update your API endpoint details' : 'Add a new API endpoint to monitor and test'}
             </DialogDescription>
           </DialogHeader>
           {dialogError && (
@@ -863,7 +926,7 @@ export default function ApiEndpoints() {
                 Cancel
               </Button>
               <Button onClick={handleSubmitEndpoint}>
-                Create Endpoint
+                {editingEndpointId ? 'Update Endpoint' : 'Create Endpoint'}
               </Button>
             </div>
           </div>

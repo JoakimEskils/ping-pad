@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -84,13 +85,31 @@ func (h *Handler) TestEndpoint(w http.ResponseWriter, r *http.Request) {
 		CreatedAt:       reqJSON.CreatedAt,
 	}
 
-	// Execute test
+	// Execute test with context from request (respects client disconnects)
 	ctx := r.Context()
+	
+	// Log the start of test execution
+	log.Printf("Executing test for endpoint %s (%s %s)", req.EndpointID, req.Method, req.URL)
+	startTime := time.Now()
+	
 	result := h.engine.ExecuteTest(ctx, req)
+	
+	executionTime := time.Since(startTime)
+	log.Printf("Test completed for endpoint %s in %v", req.EndpointID, executionTime)
+
+	// Check if context was cancelled (client disconnected)
+	if ctx.Err() != nil {
+		log.Printf("Request context cancelled for endpoint %s: %v", req.EndpointID, ctx.Err())
+		http.Error(w, "Request cancelled: "+ctx.Err().Error(), http.StatusRequestTimeout)
+		return
+	}
 
 	// Return result
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		// Log encoding error but don't fail - response may have already been sent
+		log.Printf("Error encoding response for endpoint %s: %v", req.EndpointID, err)
+	}
 }
 
 // TestBatch handles batch endpoint testing
