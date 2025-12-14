@@ -38,9 +38,9 @@ public class ApiEndpointService {
      * Create a new API endpoint.
      */
     @Transactional
-    public UUID createEndpoint(String name, String url, String method, String headers, String body, Long userId) {
+    public UUID createEndpoint(String name, String url, String method, String headers, String body, Long userId, Boolean recurringEnabled, String recurringInterval) {
         ApiEndpointAggregate aggregate = new ApiEndpointAggregate();
-        aggregate.create(name, url, method, headers, body, userId);
+        aggregate.create(name, url, method, headers, body, userId, recurringEnabled, recurringInterval);
 
         List<Event> events = aggregate.getUncommittedEvents();
         eventStore.appendEvents(aggregate.getId(), ApiEndpointAggregate.AGGREGATE_TYPE, 0, events);
@@ -58,9 +58,9 @@ public class ApiEndpointService {
      * Update an existing API endpoint.
      */
     @Transactional
-    public void updateEndpoint(UUID endpointId, String name, String url, String method, String headers, String body) {
+    public void updateEndpoint(UUID endpointId, String name, String url, String method, String headers, String body, Boolean recurringEnabled, String recurringInterval) {
         ApiEndpointAggregate aggregate = loadAggregate(endpointId);
-        aggregate.update(name, url, method, headers, body);
+        aggregate.update(name, url, method, headers, body, recurringEnabled, recurringInterval);
 
         List<Event> events = aggregate.getUncommittedEvents();
         eventStore.appendEvents(aggregate.getId(), ApiEndpointAggregate.AGGREGATE_TYPE, aggregate.getVersion() - events.size(), events);
@@ -127,6 +127,13 @@ public class ApiEndpointService {
                 cacheService.putList(cacheKey, endpoints);
                 return endpoints;
             });
+    }
+
+    /**
+     * Get all endpoints with recurring enabled.
+     */
+    public List<ApiEndpointProjection> getRecurringEndpoints() {
+        return projectionRepository.findByRecurringEnabledTrue();
     }
 
     /**

@@ -63,7 +63,7 @@ class ApiEndpointControllerUnitTest {
         request.headers = new HashMap<>();
         request.body = null;
 
-        when(apiEndpointService.createEndpoint(anyString(), anyString(), anyString(), any(), any(), anyLong()))
+        when(apiEndpointService.createEndpoint(anyString(), anyString(), anyString(), any(), any(), anyLong(), anyBoolean(), any()))
                 .thenReturn(endpointId);
         when(apiEndpointService.getEndpoint(endpointId)).thenReturn(projection);
 
@@ -78,7 +78,7 @@ class ApiEndpointControllerUnitTest {
                 .andExpect(jsonPath("$.method").value("GET"));
 
         verify(apiEndpointService).createEndpoint(eq("Test Endpoint"), eq("https://api.example.com/test"),
-                eq("GET"), isNull(), isNull(), eq(1L));
+                eq("GET"), isNull(), isNull(), eq(1L), anyBoolean(), any());
     }
 
     @Test
@@ -96,7 +96,7 @@ class ApiEndpointControllerUnitTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Name is required"));
 
-        verify(apiEndpointService, never()).createEndpoint(any(), any(), any(), any(), any(), anyLong());
+        verify(apiEndpointService, never()).createEndpoint(any(), any(), any(), any(), any(), anyLong(), anyBoolean(), any());
     }
 
     @Test
@@ -114,7 +114,7 @@ class ApiEndpointControllerUnitTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("URL is required"));
 
-        verify(apiEndpointService, never()).createEndpoint(any(), any(), any(), any(), any(), anyLong());
+        verify(apiEndpointService, never()).createEndpoint(any(), any(), any(), any(), any(), anyLong(), anyBoolean(), any());
     }
 
     @Test
@@ -136,7 +136,7 @@ class ApiEndpointControllerUnitTest {
         request.headers = new HashMap<>();
         request.body = "{\"key\":\"value\"}";
 
-        doNothing().when(apiEndpointService).updateEndpoint(any(), anyString(), anyString(), anyString(), any(), any());
+        doNothing().when(apiEndpointService).updateEndpoint(any(), anyString(), anyString(), anyString(), any(), any(), anyBoolean(), any());
         when(apiEndpointService.getEndpoint(endpointId)).thenReturn(projection);
 
         // Act & Assert
@@ -148,7 +148,7 @@ class ApiEndpointControllerUnitTest {
                 .andExpect(jsonPath("$.name").value("Updated Endpoint"));
 
         verify(apiEndpointService).updateEndpoint(eq(endpointId), eq("Updated Endpoint"),
-                eq("https://api.example.com/updated"), eq("POST"), isNull(), eq("{\"key\":\"value\"}"));
+                eq("https://api.example.com/updated"), eq("POST"), isNull(), eq("{\"key\":\"value\"}"), anyBoolean(), any());
     }
 
     @Test
@@ -165,7 +165,7 @@ class ApiEndpointControllerUnitTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
 
-        verify(apiEndpointService, never()).updateEndpoint(any(), any(), any(), any(), any(), any());
+        verify(apiEndpointService, never()).updateEndpoint(any(), any(), any(), any(), any(), any(), anyBoolean(), any());
     }
 
     @Test
@@ -296,7 +296,7 @@ class ApiEndpointControllerUnitTest {
         request.headers.put("Authorization", "Bearer token");
         request.headers.put("Content-Type", "application/json");
 
-        when(apiEndpointService.createEndpoint(anyString(), anyString(), anyString(), any(), any(), anyLong()))
+        when(apiEndpointService.createEndpoint(anyString(), anyString(), anyString(), any(), any(), anyLong(), anyBoolean(), any()))
                 .thenReturn(endpointId);
         when(apiEndpointService.getEndpoint(endpointId)).thenReturn(projection);
 
@@ -307,6 +307,6 @@ class ApiEndpointControllerUnitTest {
                 .andExpect(status().isCreated());
 
         verify(apiEndpointService).createEndpoint(eq("Test Endpoint"), eq("https://api.example.com/test"),
-                eq("GET"), contains("Authorization"), isNull(), eq(1L));
+                eq("GET"), contains("Authorization"), isNull(), eq(1L), anyBoolean(), any());
     }
 }

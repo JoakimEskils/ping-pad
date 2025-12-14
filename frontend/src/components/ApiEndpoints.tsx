@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Play, Eye, ChevronDown, ChevronRight, Calendar, Clock, X, AlertCircle, CheckCircle2, Info, Edit } from 'lucide-react';
+import { Plus, Trash2, Play, Eye, ChevronDown, ChevronRight, Calendar, Clock, X, AlertCircle, CheckCircle2, Edit } from 'lucide-react';
 import type { ApiEndpoint } from '../types';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
@@ -29,19 +29,13 @@ export default function ApiEndpoints() {
     url: '',
     method: 'GET' as const,
     headers: '',
-    body: ''
+    body: '',
+    recurringEnabled: false,
+    recurringInterval: '' as '' | '30s' | '5m' | '1h' | '24h'
   });
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
-  const [testResult, setTestResult] = useState<{
-    endpointId: string;
-    statusCode?: number;
-    responseTime?: number;
-    success: boolean;
-    error?: string;
-    responseBody?: string;
-  } | null>(null);
 
   // Load endpoints and API keys on component mount
   useEffect(() => {
@@ -131,6 +125,10 @@ export default function ApiEndpoints() {
             ...endpoint,
             id: endpoint.id?.toString() || endpoint.uuid_id?.toString() || String(endpoint.id),
             headers,
+            recurringEnabled: endpoint.recurringEnabled || false,
+            recurringInterval: (endpoint.recurringInterval && ['30s', '5m', '1h', '24h'].includes(endpoint.recurringInterval)) 
+              ? endpoint.recurringInterval as '30s' | '5m' | '1h' | '24h'
+              : '',
             createdAt: endpoint.createdAt ? new Date(endpoint.createdAt) : new Date(),
             updatedAt: endpoint.updatedAt ? new Date(endpoint.updatedAt) : new Date()
           };
@@ -153,7 +151,7 @@ export default function ApiEndpoints() {
     setDialogError(null);
     setErrorMessage(null);
     setSuccessMessage(null);
-    setNewEndpoint({ name: '', url: '', method: 'GET', headers: '', body: '' });
+    setNewEndpoint({ name: '', url: '', method: 'GET', headers: '', body: '', recurringEnabled: false, recurringInterval: '' });
     setSelectedApiKeyId('');
     setApiKeyHeaderName('Authorization');
     setIsModalOpen(true);
@@ -175,7 +173,11 @@ export default function ApiEndpoints() {
       url: endpoint.url,
       method: endpoint.method as any,
       headers: headersStr,
-      body: endpoint.body || ''
+      body: endpoint.body || '',
+      recurringEnabled: endpoint.recurringEnabled || false,
+      recurringInterval: (endpoint.recurringInterval && ['30s', '5m', '1h', '24h'].includes(endpoint.recurringInterval)) 
+        ? endpoint.recurringInterval as '30s' | '5m' | '1h' | '24h'
+        : ''
     });
     setSelectedApiKeyId('');
     setApiKeyHeaderName('Authorization');
@@ -225,7 +227,9 @@ export default function ApiEndpoints() {
           url: newEndpoint.url,
           method: newEndpoint.method,
           headers,
-          body: newEndpoint.body || undefined
+          body: newEndpoint.body || undefined,
+          recurringEnabled: newEndpoint.recurringEnabled,
+          recurringInterval: newEndpoint.recurringInterval || null
         })
       });
 
@@ -242,16 +246,9 @@ export default function ApiEndpoints() {
           });
         }
         
-        const endpoint = {
-          ...data,
-          id: data.id?.toString() || data.uuid_id?.toString() || data.id?.toString(),
-          headers: parsedHeaders,
-          createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
-          updatedAt: data.updatedAt ? new Date(data.updatedAt) : new Date()
-        };
-        setEndpoints(prev => [endpoint, ...prev]);
-        loadEndpoints(); // Reload to ensure consistency
-        setNewEndpoint({ name: '', url: '', method: 'GET', headers: '', body: '' });
+        // Don't add to list here - let loadEndpoints() handle it to avoid duplication
+        // Just reload to ensure consistency
+        setNewEndpoint({ name: '', url: '', method: 'GET', headers: '', body: '', recurringEnabled: false, recurringInterval: '' });
         setSelectedApiKeyId('');
         setApiKeyHeaderName('Authorization');
         setIsModalOpen(false);
@@ -295,7 +292,6 @@ export default function ApiEndpoints() {
 
   const handleTestEndpoint = async (endpoint: ApiEndpoint) => {
     setIsTesting(endpoint.id);
-    setTestResult(null);
     setErrorMessage(null);
     setSuccessMessage(null);
     
@@ -309,19 +305,12 @@ export default function ApiEndpoints() {
 
       if (response.ok) {
         const result = await response.json();
-        setTestResult({
-          endpointId: endpoint.id,
-          statusCode: result.statusCode,
-          responseTime: result.responseTime,
-          success: result.success,
-          error: result.error,
-          responseBody: result.responseBody
-        });
         if (result.success) {
-          setSuccessMessage('Test completed successfully!');
+          setSuccessMessage('Test completed successfully! View results in Analytics.');
           setTimeout(() => setSuccessMessage(null), 5000);
         } else {
-          setErrorMessage(result.error || 'Test completed but returned an error');
+          setSuccessMessage('Test completed. View results in Analytics.');
+          setTimeout(() => setSuccessMessage(null), 5000);
         }
         // Reload endpoints to show updated data
         loadEndpoints();
@@ -344,12 +333,10 @@ export default function ApiEndpoints() {
           }
         }
         setErrorMessage(errorMsg);
-        setTestResult(null);
       }
     } catch (error) {
       console.error('Error testing endpoint:', error);
       setErrorMessage('Failed to test endpoint. Please try again.');
-      setTestResult(null);
     } finally {
       setIsTesting(null);
     }
@@ -481,57 +468,6 @@ export default function ApiEndpoints() {
         </Card>
       )}
 
-      {/* Test Result Display */}
-      {testResult && (
-        <Card className="border-blue-200 bg-blue-50">
-          <CardContent className="p-4">
-            <div className="flex items-start gap-3">
-              <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-              <div className="flex-1 space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-blue-900">Test Result</p>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setTestResult(null)}
-                    className="h-6 w-6 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-100"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div>
-                    <p className="text-blue-600 font-medium">Status Code</p>
-                    <p className="text-blue-900 font-mono">{testResult.statusCode || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-blue-600 font-medium">Response Time</p>
-                    <p className="text-blue-900 font-mono">{testResult.responseTime ? `${testResult.responseTime}ms` : 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-blue-600 font-medium">Success</p>
-                    <Badge className={testResult.success ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}>
-                      {testResult.success ? 'Yes' : 'No'}
-                    </Badge>
-                  </div>
-                  <div>
-                    <p className="text-blue-600 font-medium">Error</p>
-                    <p className="text-blue-900 text-xs">{testResult.error || 'None'}</p>
-                  </div>
-                </div>
-                {testResult.responseBody && (
-                  <div className="mt-3">
-                    <p className="text-blue-600 font-medium text-sm mb-2">Response Body (first 500 chars)</p>
-                    <pre className="bg-white border border-blue-200 rounded-md p-3 text-xs overflow-x-auto max-h-40 overflow-y-auto">
-                      {testResult.responseBody.substring(0, 500)}{testResult.responseBody.length > 500 ? '...' : ''}
-                    </pre>
-                  </div>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Endpoints Table */}
       {endpoints.length === 0 ? (
@@ -775,7 +711,7 @@ export default function ApiEndpoints() {
           setEditingEndpointId(null);
           setSelectedApiKeyId('');
           setApiKeyHeaderName('Authorization');
-          setNewEndpoint({ name: '', url: '', method: 'GET', headers: '', body: '' });
+          setNewEndpoint({ name: '', url: '', method: 'GET', headers: '', body: '', recurringEnabled: false, recurringInterval: '' });
           setDialogError(null);
           setErrorMessage(null);
           setSuccessMessage(null);
@@ -919,6 +855,34 @@ export default function ApiEndpoints() {
                 onChange={(e) => setNewEndpoint(prev => ({ ...prev, body: e.target.value }))}
                 className="font-mono text-xs"
               />
+            </div>
+
+            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <Label htmlFor="recurringInterval" className="text-sm font-medium text-slate-900 block mb-2">
+                Automatic/Recurring Calls
+              </Label>
+              <select
+                id="recurringInterval"
+                value={newEndpoint.recurringInterval || ''}
+                onChange={(e) => {
+                  const interval = e.target.value as '' | '30s' | '5m' | '1h' | '24h';
+                  setNewEndpoint(prev => ({ 
+                    ...prev, 
+                    recurringEnabled: interval !== '',
+                    recurringInterval: interval
+                  }));
+                }}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              >
+                <option value="">Disabled</option>
+                <option value="30s">Every 30 seconds</option>
+                <option value="5m">Every 5 minutes</option>
+                <option value="1h">Every hour</option>
+                <option value="24h">Once per day (24 hours)</option>
+              </select>
+              <p className="text-xs text-slate-600 mt-2">
+                Select an interval to automatically test this endpoint
+              </p>
             </div>
 
             <div className="flex justify-end gap-3 pt-4">

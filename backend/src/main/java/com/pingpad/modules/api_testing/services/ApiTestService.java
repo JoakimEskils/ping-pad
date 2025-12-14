@@ -171,6 +171,15 @@ public class ApiTestService {
     }
 
 
+    /**
+     * Get test results for an endpoint within a time range.
+     */
+    public java.util.List<ApiTestResult> getTestResults(UUID endpointId, LocalDateTime startTime, LocalDateTime endTime) {
+        return testResultRepository.findByEndpointIdAndTimestampBetweenOrderByTimestampDesc(
+            endpointId, startTime, endTime
+        );
+    }
+
     private String formatHeaders(Map<String, String> headers) {
         if (headers == null || headers.isEmpty()) {
             return null;

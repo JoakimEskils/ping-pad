@@ -176,6 +176,121 @@ This will build and start two containers:
 
 The Go Testing Engine provides high-performance HTTP testing with excellent concurrency, while Spring Boot handles business logic and data persistence via Postgres DB.
 
+## Automatic/Recurring Endpoint Testing
+
+PingPad supports **automatic recurring testing** of API endpoints, allowing you to monitor your APIs continuously without manual intervention. When enabled, endpoints are automatically tested every 30 seconds, and results are stored for real-time analytics.
+
+### How It Works
+
+1. **Enable Recurring Testing**: When creating or editing an endpoint in the frontend, check the "Enable automatic/recurring calls" checkbox. This sets the `recurring_enabled` flag in the database.
+
+2. **Scheduled Task**: A Spring Boot scheduled task (`RecurringEndpointScheduler`) runs every 30 seconds and automatically:
+   - Queries the database for all endpoints with `recurring_enabled = true`
+   - Executes a test for each endpoint using the same testing infrastructure as manual tests
+   - Saves test results to the `api_test_results` table
+
+3. **Real-Time Analytics**: The analytics modal in the frontend:
+   - Fetches real test results from the database
+   - Automatically polls for updates every 5 seconds when open
+   - Displays charts showing response time, request volume, success rate, and status code distribution
+   - Supports time range selection (24 hours, 7 days, 30 days)
+
+### Implementation Details
+
+#### Backend Components
+
+- **Database Schema**: The `api_endpoints` table includes a `recurring_enabled` boolean column (default: `false`)
+- **Scheduled Service**: `RecurringEndpointScheduler` uses Spring's `@Scheduled` annotation with `fixedRate = 30000` (30 seconds)
+- **Analytics Endpoint**: `GET /api/endpoints/{id}/analytics?hours={hours}` or `?days={days}` returns test results filtered by time range
+- **Event Sourcing**: The `recurringEnabled` field is part of the event-sourced aggregate, ensuring all changes are tracked
+
+#### Frontend Components
+
+- **Checkbox Control**: Added to the endpoint create/edit dialog
+- **Analytics Modal**: Completely rewritten to use real data with automatic polling
+- **Visual Indicators**: Endpoints with recurring enabled show an "Auto-enabled" badge in the analytics modal
+
+### Docker Configuration
+
+When running with Docker Compose, the scheduled task runs automatically within the Spring Boot container:
+
+```yaml
+backend:
+  build:
+    context: .
+    dockerfile: ./backend/Dockerfile
+  environment:
+    - SPRING_PROFILES_ACTIVE=docker
+  # ... other config
+```
+
+The scheduled task is enabled by default when Spring Boot starts. No additional configuration is required - it will automatically:
+- Connect to the PostgreSQL database (via Docker networking)
+- Query for recurring endpoints
+- Execute tests via the Go testing engine (also running in Docker)
+- Store results in the shared database
+
+### Usage Example
+
+1. **Create an endpoint** with recurring enabled:
+   - Click "Create Endpoint"
+   - Fill in endpoint details (URL, method, headers, etc.)
+   - Check "Enable automatic/recurring calls"
+   - Save the endpoint
+
+2. **View real-time analytics**:
+   - Click "View Analytics" on any endpoint
+   - The modal opens showing real test results
+   - Data automatically updates every 5 seconds
+   - Select different time ranges (24h, 7d, 30d) to view historical data
+
+3. **Monitor endpoint health**:
+   - Charts show response time trends
+   - Success rate indicates endpoint reliability
+   - Status code distribution helps identify issues
+   - Error count highlights problematic periods
+
+### Benefits
+
+- **Continuous Monitoring**: Endpoints are tested automatically without manual intervention
+- **Historical Data**: All test results are stored, enabling trend analysis
+- **Real-Time Updates**: Analytics modal refreshes automatically when open
+- **Performance Tracking**: Monitor response times and success rates over time
+- **Issue Detection**: Quickly identify when endpoints start failing or slowing down
+
+### Configuration
+
+The scheduled task interval can be modified in `RecurringEndpointScheduler.java`:
+
+```java
+@Scheduled(fixedRate = 30000) // 30 seconds in milliseconds
+public void testRecurringEndpoints() {
+    // ...
+}
+```
+
+To change the interval, modify the `fixedRate` value (in milliseconds). For example:
+- 30 seconds: `30000` (default)
+- 1 minute: `60000`
+- 5 minutes: `300000`
+- 15 minutes: `900000`
+
+The analytics polling interval in the frontend can be adjusted in `EndpointDetail.tsx`:
+
+```typescript
+useEffect(() => {
+  const interval = setInterval(() => {
+    fetchAnalytics();
+  }, 5000); // Poll every 5 seconds
+  return () => clearInterval(interval);
+}, [endpoint.id, timeRange]);
+```
+
+For more details on the implementation, see:
+- Backend scheduler: `backend/src/main/java/com/pingpad/modules/api_testing/services/RecurringEndpointScheduler.java`
+- Analytics endpoint: `backend/src/main/java/com/pingpad/modules/api_testing/controllers/ApiEndpointController.java`
+- Frontend analytics: `frontend/src/components/EndpointDetail.tsx`
+
 ## gRPC Communication
 
 PingPad uses **gRPC** for communication between the Java backend service and the Go API testing engine, replacing the previous JSON-over-HTTP REST API. This provides better performance, type safety, and streaming capabilities.

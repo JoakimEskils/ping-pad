@@ -12,6 +12,8 @@ export interface ApiEndpoint {
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
   headers: Record<string, string>;
   body?: string;
+  recurringEnabled?: boolean;
+  recurringInterval?: string; // '30s', '5m', '1h', '24h'
   createdAt: Date;
   updatedAt: Date;
 }
@@ -19,11 +21,12 @@ export interface ApiEndpoint {
 export interface ApiTestResult {
   id: string;
   endpointId: string;
-  statusCode: number;
-  responseTime: number;
-  responseBody: string;
-  responseHeaders: Record<string, string>;
+  statusCode?: number;
+  responseTime?: number;
+  responseBody?: string;
+  responseHeaders?: Record<string, string>;
   error?: string;
+  success: boolean;
   timestamp: Date;
 }
 

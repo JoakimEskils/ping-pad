@@ -22,6 +22,8 @@ public class ApiEndpointAggregate extends BaseAggregate {
     private String headers;
     private String body;
     private Long userId;
+    private Boolean recurringEnabled;
+    private String recurringInterval;
     private boolean deleted;
 
     // Default constructor for creating new aggregates
@@ -42,24 +44,24 @@ public class ApiEndpointAggregate extends BaseAggregate {
     /**
      * Create a new API endpoint.
      */
-    public void create(String name, String url, String method, String headers, String body, Long userId) {
+    public void create(String name, String url, String method, String headers, String body, Long userId, Boolean recurringEnabled, String recurringInterval) {
         if (this.name != null) {
             throw new IllegalStateException("API endpoint already exists");
         }
-        recordEvent(new ApiEndpointCreatedEvent(getId(), name, url, method, headers, body, userId));
+        recordEvent(new ApiEndpointCreatedEvent(getId(), name, url, method, headers, body, userId, recurringEnabled != null ? recurringEnabled : false, recurringInterval));
     }
 
     /**
      * Update an existing API endpoint.
      */
-    public void update(String name, String url, String method, String headers, String body) {
+    public void update(String name, String url, String method, String headers, String body, Boolean recurringEnabled, String recurringInterval) {
         if (this.name == null) {
             throw new IllegalStateException("API endpoint does not exist");
         }
         if (deleted) {
             throw new IllegalStateException("Cannot update deleted API endpoint");
         }
-        recordEvent(new ApiEndpointUpdatedEvent(name, url, method, headers, body));
+        recordEvent(new ApiEndpointUpdatedEvent(name, url, method, headers, body, recurringEnabled, recurringInterval));
     }
 
     /**
@@ -93,6 +95,8 @@ public class ApiEndpointAggregate extends BaseAggregate {
         this.headers = event.getHeaders();
         this.body = event.getBody();
         this.userId = event.getUserId();
+        this.recurringEnabled = event.getRecurringEnabled() != null ? event.getRecurringEnabled() : false;
+        this.recurringInterval = event.getRecurringInterval();
         this.deleted = false;
     }
 
@@ -111,6 +115,12 @@ public class ApiEndpointAggregate extends BaseAggregate {
         }
         if (event.getBody() != null) {
             this.body = event.getBody();
+        }
+        if (event.getRecurringEnabled() != null) {
+            this.recurringEnabled = event.getRecurringEnabled();
+        }
+        if (event.getRecurringInterval() != null) {
+            this.recurringInterval = event.getRecurringInterval();
         }
     }
 

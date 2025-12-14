@@ -51,6 +51,8 @@ public class ApiEndpointEventHandler {
             .headers(event.getHeaders())
             .body(event.getBody())
             .userId(event.getUserId())
+            .recurringEnabled(event.getRecurringEnabled() != null ? event.getRecurringEnabled() : false)
+            .recurringInterval(event.getRecurringInterval())
             .build();
 
         projectionRepository.save(projection);
@@ -86,6 +88,12 @@ public class ApiEndpointEventHandler {
             }
             if (event.getBody() != null) {
                 projection.setBody(event.getBody());
+            }
+            if (event.getRecurringEnabled() != null) {
+                projection.setRecurringEnabled(event.getRecurringEnabled());
+            }
+            if (event.getRecurringInterval() != null) {
+                projection.setRecurringInterval(event.getRecurringInterval());
             }
             projectionRepository.save(projection);
             

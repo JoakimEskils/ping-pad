@@ -9,5 +9,6 @@ import java.util.UUID;
 public interface ApiEndpointProjectionRepository extends JpaRepository<ApiEndpointProjection, UUID> {
     Optional<ApiEndpointProjection> findById(UUID id);
     List<ApiEndpointProjection> findByUserId(Long userId);
+    List<ApiEndpointProjection> findByRecurringEnabledTrue();
     void deleteById(UUID id);
 }
