@@ -233,15 +233,25 @@ func TestGrpcFlow_WithPOSTRequest(t *testing.T) {
 		t.Fatalf("Failed to listen: %v", err)
 	}
 
+	serverAddr := listener.Addr().String()
+
+	// Create gRPC server manually
+	grpcSrv := grpc.NewServer(
+		grpc.UnaryInterceptor(func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+			return handler(ctx, req)
+		}),
+	)
+	pb.RegisterApiTestingServiceServer(grpcSrv, server)
+
 	go func() {
-		if err := grpcServer.Start(listener.Addr().(*net.TCPAddr).Port); err != nil {
+		if err := grpcSrv.Serve(listener); err != nil {
 			t.Errorf("gRPC server failed: %v", err)
 		}
 	}()
 
 	time.Sleep(100 * time.Millisecond)
 
-	conn, err := grpc.Dial(listener.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial(serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		t.Fatalf("Failed to connect to server: %v", err)
 	}
@@ -303,15 +313,25 @@ func TestGrpcFlow_ErrorHandling(t *testing.T) {
 		t.Fatalf("Failed to listen: %v", err)
 	}
 
+	serverAddr := listener.Addr().String()
+
+	// Create gRPC server manually
+	grpcSrv := grpc.NewServer(
+		grpc.UnaryInterceptor(func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+			return handler(ctx, req)
+		}),
+	)
+	pb.RegisterApiTestingServiceServer(grpcSrv, server)
+
 	go func() {
-		if err := grpcServer.Start(listener.Addr().(*net.TCPAddr).Port); err != nil {
+		if err := grpcSrv.Serve(listener); err != nil {
 			t.Errorf("gRPC server failed: %v", err)
 		}
 	}()
 
 	time.Sleep(100 * time.Millisecond)
 
-	conn, err := grpc.Dial(listener.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial(serverAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		t.Fatalf("Failed to connect to server: %v", err)
 	}
