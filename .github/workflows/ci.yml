@@ -40,14 +40,49 @@ jobs:
         key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
         restore-keys: ${{ runner.os }}-m2
     
-    - name: Run tests
-      run: ./run-tests.sh
-      working-directory: ./
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.25'
+    
+    - name: Install Protocol Buffers
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y protobuf-compiler
+    
+    - name: Run Java Backend Unit Tests
+      run: |
+        cd backend
+        mvn test -Dtest="**/unit/**"
       env:
         POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
         POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
         POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
         # Don't set SPRING_DATASOURCE_* for tests - they use H2 from application-test.properties
+    
+    - name: Run Java Backend System Tests
+      run: |
+        cd backend
+        mvn test -Dtest="**/system/**"
+      env:
+        POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+        POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+        POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+    
+    - name: Generate Go Proto Files
+      run: |
+        cd api-testing-engine
+        ./generate-proto.sh
+    
+    - name: Run Go Unit Tests
+      run: |
+        cd api-testing-engine
+        go test ./pkg/testing/... ./internal/grpc/... -v
+    
+    - name: Run Go System Tests
+      run: |
+        cd api-testing-engine
+        go test ./system/... -v
     
     - name: Upload test results
       uses: actions/upload-artifact@v4
