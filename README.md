@@ -21,6 +21,16 @@ A SaaS tool for testing REST API endpoints and logging webhooks — built with S
   - [Database Schema](#database-schema)
   - [Usage Example](#usage-example)
   - [Configuration](#configuration)
+- [Caching Layer](#caching-layer)
+  - [What is Caching?](#what-is-caching)
+  - [Chosen Cache Pattern: Hybrid Cache-Aside + Write-Through](#chosen-cache-pattern-hybrid-cache-aside--write-through)
+  - [Why This Pattern?](#why-this-pattern)
+  - [Implementation Details](#implementation-details-1)
+  - [Example Flow](#example-flow)
+  - [Configuration](#configuration-1)
+  - [Benefits](#benefits)
+  - [Trade-offs](#trade-offs)
+  - [Future Enhancements](#future-enhancements)
 - [Correlation ID (Trace ID)](#correlation-id-trace-id)
 - [Database Models](#database-models)
   - [Core Application Tables](#core-application-tables)
@@ -160,6 +170,7 @@ The backend is organized into the following modules:
 - **User Management Module**: Manages user data, profiles, and user-related operations
 - **API Testing Module**: Core functionality for creating, managing, and testing API endpoints
 - **Event Sourcing Module**: Provides event sourcing infrastructure for audit trails and state management
+- **Cache Module**: Redis-based caching layer for improved performance and reduced database load
 - **Shared Module**: Common utilities, configurations, and cross-cutting concerns used across modules
 
 Each module is self-contained with its own controllers, services, models, and repositories, communicating through well-defined interfaces. This structure enables independent development and testing of each module while maintaining the operational simplicity of a single application.
@@ -235,6 +246,149 @@ event-sourcing:
 ```
 
 For more details, see the [Event Sourcing README](backend/src/main/java/com/pingpad/modules/eventsourcing/README.md).
+
+## Caching Layer
+
+PingPad implements a **Redis-based caching layer** between services and the database to improve performance and reduce database load. The caching strategy uses a **hybrid pattern** combining **Cache-Aside (Lazy Loading)** for reads and **Write-Through** for writes, optimized for the event-sourced architecture.
+
+### What is Caching?
+
+Caching stores frequently accessed data in fast, in-memory storage (Redis) to avoid expensive database queries. When data is requested, the system first checks the cache. If found (cache hit), it returns immediately. If not found (cache miss), it queries the database and stores the result in cache for future requests.
+
+### Chosen Cache Pattern: Hybrid Cache-Aside + Write-Through
+
+PingPad uses a **hybrid caching pattern** that combines the best aspects of Cache-Aside and Write-Through:
+
+#### **Cache-Aside (Lazy Loading) for Reads**
+- **How it works**: Application code explicitly manages cache
+  1. Check cache first
+  2. If cache miss, load from database
+  3. Store result in cache for future reads
+- **Used for**: All read operations (`getEndpoint`, `getEndpointsByUser`, `getUserApiKeys`, etc.)
+
+#### **Write-Through for Writes**
+- **How it works**: Write to database first, then immediately update cache
+  1. Update database
+  2. Update cache with new data immediately
+  3. Invalidate related cache entries (e.g., user's list cache)
+- **Used for**: All write operations (create, update, delete)
+
+### Why This Pattern?
+
+This hybrid pattern was chosen for several reasons specific to PingPad's architecture:
+
+1. **Event Sourcing Compatibility**: 
+   - Projections are updated synchronously after events are persisted
+   - We have the updated data immediately available, making Write-Through natural
+   - No need to wait for async cache updates
+
+2. **Read-Heavy Workload**:
+   - API endpoints and API keys are read frequently (listing, viewing details)
+   - Cache-Aside ensures popular data stays in cache
+   - Reduces database load for common queries
+
+3. **Consistency**:
+   - Write-Through ensures cache always has the latest data after writes
+   - Subsequent reads immediately benefit from cached data
+   - Avoids stale data issues that pure Cache-Aside with invalidation can have
+
+4. **Performance**:
+   - Write-Through eliminates cache misses on reads immediately after writes
+   - Cache-Aside minimizes database queries for frequently accessed data
+   - Default TTL of 1 hour provides automatic expiration for safety
+
+5. **Simplicity**:
+   - Application code explicitly controls cache behavior
+   - Easy to understand and debug
+   - No complex cache synchronization logic needed
+
+### Implementation Details
+
+The caching layer is implemented as a dedicated **Cache Module** (`com.pingpad.modules.cache`), following the modular monolith architecture pattern. This module is self-contained with its own configuration and services.
+
+#### Cache Module Structure
+- **`CacheModule`**: Module configuration and component scanning
+- **`RedisConfig`**: Redis connection and template configuration
+- **`CacheService`**: Unified interface for cache operations
+
+- **Key Naming**: Uses prefixes for organization (`endpoint:`, `endpoint:user:`, `apikey:`, etc.)
+- **Serialization**: Uses Jackson JSON serialization for complex objects
+- **TTL**: Default 1-hour expiration, configurable per operation
+- **Error Handling**: Gracefully degrades if Redis is unavailable (returns empty, logs warning)
+
+#### Cached Entities
+
+Currently cached:
+- **API Endpoints**: Individual endpoints and user's endpoint lists
+- **API Keys**: Individual keys and user's key lists
+
+#### Cache Invalidation Strategy
+
+1. **On Create/Update**: 
+   - Update individual item cache (Write-Through)
+   - Invalidate user's list cache (list becomes stale)
+
+2. **On Delete**:
+   - Remove individual item from cache
+   - Invalidate user's list cache
+
+3. **Automatic Expiration**: 
+   - All cache entries expire after 1 hour (configurable)
+   - Ensures data freshness even if invalidation fails
+
+### Example Flow
+
+#### Read Operation (Cache-Aside)
+```
+1. Request: GET /api/endpoints/{id}
+2. Service checks cache: "endpoint:{id}"
+3. Cache HIT → Return cached data (no DB query)
+   OR
+   Cache MISS → Query database → Store in cache → Return data
+```
+
+#### Write Operation (Write-Through)
+```
+1. Request: PUT /api/endpoints/{id}
+2. Update database projection
+3. Update cache: "endpoint:{id}" = new data
+4. Invalidate cache: "endpoint:user:{userId}" (list is stale)
+5. Return success
+```
+
+### Configuration
+
+Redis is configured via `application.properties`:
+
+```properties
+spring.data.redis.host=localhost
+spring.data.redis.port=6379
+```
+
+In Docker, Redis runs as a separate service and is automatically connected via Docker networking.
+
+### Benefits
+
+- **Reduced Database Load**: Frequently accessed data served from Redis (sub-millisecond latency)
+- **Improved Response Times**: Cache hits are 10-100x faster than database queries
+- **Better Scalability**: Database can handle more concurrent users
+- **Cost Efficiency**: Fewer database queries reduce resource usage
+- **Resilience**: Graceful degradation if Redis is temporarily unavailable
+
+### Trade-offs
+
+- **Memory Usage**: Redis requires memory to store cached data
+- **Cache Invalidation Complexity**: Must carefully invalidate related cache entries
+- **Eventual Consistency**: List caches may be briefly stale after updates (acceptable for this use case)
+- **Cache Warming**: First request after cache expiration requires a database query
+
+### Future Enhancements
+
+Potential improvements:
+- **Cache Warming**: Pre-populate cache on application startup
+- **Adaptive TTL**: Adjust TTL based on access patterns
+- **Cache Metrics**: Monitor hit/miss rates to optimize caching strategy
+- **Distributed Cache**: Support Redis Cluster for high availability
 
 ## Correlation ID (Trace ID)
 

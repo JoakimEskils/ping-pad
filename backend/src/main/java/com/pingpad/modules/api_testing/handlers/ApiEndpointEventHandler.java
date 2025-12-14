@@ -6,10 +6,13 @@ import com.pingpad.modules.api_testing.events.ApiEndpointUpdatedEvent;
 import com.pingpad.modules.api_testing.projections.ApiEndpointProjection;
 import com.pingpad.modules.api_testing.projections.ApiEndpointProjectionRepository;
 import com.pingpad.modules.eventsourcing.core.Event;
+import com.pingpad.modules.cache.services.CacheService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+
+import java.util.UUID;
 
 /**
  * Synchronous event handler that updates the read model (projection)
@@ -21,6 +24,10 @@ import org.springframework.stereotype.Component;
 public class ApiEndpointEventHandler {
 
     private final ApiEndpointProjectionRepository projectionRepository;
+    private final CacheService cacheService;
+
+    private static final String CACHE_KEY_PREFIX = "endpoint:";
+    private static final String CACHE_KEY_USER_PREFIX = "endpoint:user:";
 
     @Transactional
     public void handle(Event event) {
@@ -47,6 +54,13 @@ public class ApiEndpointEventHandler {
             .build();
 
         projectionRepository.save(projection);
+        
+        // Write-Through: Update cache immediately after DB write
+        // This ensures subsequent reads get the data from cache without a DB hit
+        cacheService.put(CACHE_KEY_PREFIX + event.getEndpointId(), projection);
+        
+        // Invalidate user's endpoint list cache since it's now stale
+        cacheService.delete(CACHE_KEY_USER_PREFIX + event.getUserId());
     }
 
     private void handle(ApiEndpointUpdatedEvent event) {
@@ -54,7 +68,7 @@ public class ApiEndpointEventHandler {
         // This will be handled by the service layer that has access to the aggregate
     }
 
-    public void handleUpdate(java.util.UUID endpointId, ApiEndpointUpdatedEvent event) {
+    public void handleUpdate(UUID endpointId, ApiEndpointUpdatedEvent event) {
         log.debug("Handling ApiEndpointUpdatedEvent for endpoint: {}", endpointId);
         
         projectionRepository.findById(endpointId).ifPresent(projection -> {
@@ -74,6 +88,13 @@ public class ApiEndpointEventHandler {
                 projection.setBody(event.getBody());
             }
             projectionRepository.save(projection);
+            
+            // Write-Through: Update cache immediately after DB write
+            // This ensures subsequent reads get the updated data from cache without a DB hit
+            cacheService.put(CACHE_KEY_PREFIX + endpointId, projection);
+            
+            // Invalidate user's endpoint list cache since it's now stale
+            cacheService.delete(CACHE_KEY_USER_PREFIX + projection.getUserId());
         });
     }
 
@@ -82,8 +103,19 @@ public class ApiEndpointEventHandler {
         // This will be handled by the service layer
     }
 
-    public void handleDelete(java.util.UUID endpointId) {
+    public void handleDelete(UUID endpointId) {
         log.debug("Handling ApiEndpointDeletedEvent for endpoint: {}", endpointId);
-        projectionRepository.deleteById(endpointId);
+        
+        // Get projection first to know the userId for cache invalidation
+        projectionRepository.findById(endpointId).ifPresent(projection -> {
+            Long userId = projection.getUserId();
+            projectionRepository.deleteById(endpointId);
+            
+            // Delete from cache (Write-Through for deletes: remove from cache immediately)
+            cacheService.delete(CACHE_KEY_PREFIX + endpointId);
+            
+            // Invalidate user's endpoint list cache since it's now stale
+            cacheService.delete(CACHE_KEY_USER_PREFIX + userId);
+        });
     }
 }
