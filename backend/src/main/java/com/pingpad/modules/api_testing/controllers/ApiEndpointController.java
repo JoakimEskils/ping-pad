@@ -90,13 +90,20 @@ public class ApiEndpointController {
                 headersStr = sb.toString().trim();
             }
             
+            // Set recurringEnabled based on whether interval is provided
+            Boolean recurringEnabled = (request.recurringInterval != null && !request.recurringInterval.trim().isEmpty()) 
+                ? true 
+                : (request.recurringEnabled != null ? request.recurringEnabled : false);
+            
             UUID endpointId = apiEndpointService.createEndpoint(
                 request.name.trim(),
                 request.url.trim(),
                 request.method.trim(),
                 headersStr,
                 request.body,
-                userId
+                userId,
+                recurringEnabled,
+                request.recurringInterval != null && !request.recurringInterval.trim().isEmpty() ? request.recurringInterval.trim() : null
             );
             
             ApiEndpointProjection endpoint = apiEndpointService.getEndpoint(endpointId);
@@ -146,13 +153,20 @@ public class ApiEndpointController {
                 headersStr = sb.toString().trim();
             }
             
+            // Set recurringEnabled based on whether interval is provided
+            Boolean recurringEnabled = (request.recurringInterval != null && !request.recurringInterval.trim().isEmpty()) 
+                ? true 
+                : (request.recurringEnabled != null ? request.recurringEnabled : false);
+            
             apiEndpointService.updateEndpoint(
                 endpointId,
                 request.name.trim(),
                 request.url.trim(),
                 request.method.trim(),
                 headersStr,
-                request.body
+                request.body,
+                recurringEnabled,
+                request.recurringInterval != null && !request.recurringInterval.trim().isEmpty() ? request.recurringInterval.trim() : null
             );
             
             ApiEndpointProjection endpoint = apiEndpointService.getEndpoint(endpointId);
@@ -214,6 +228,48 @@ public class ApiEndpointController {
         }
     }
 
+    /**
+     * Get analytics/test results for an endpoint.
+     * Supports optional time range query parameters: hours (default 24) or days.
+     */
+    @GetMapping("/{id}/analytics")
+    public ResponseEntity<?> getEndpointAnalytics(
+            @PathVariable String id,
+            @RequestParam(required = false) Integer hours,
+            @RequestParam(required = false) Integer days,
+            Authentication authentication) {
+        try {
+            UUID endpointId = UUID.fromString(id);
+            
+            // Calculate time range
+            java.time.LocalDateTime endTime = java.time.LocalDateTime.now();
+            java.time.LocalDateTime startTime;
+            
+            if (days != null && days > 0) {
+                startTime = endTime.minusDays(days);
+            } else if (hours != null && hours > 0) {
+                startTime = endTime.minusHours(hours);
+            } else {
+                // Default to 24 hours
+                startTime = endTime.minusHours(24);
+            }
+            
+            List<com.pingpad.modules.api_testing.models.ApiTestResult> results = 
+                apiTestService.getTestResults(endpointId, startTime, endTime);
+            
+            return ResponseEntity.ok(results);
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid request for endpoint analytics: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                .body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            log.error("Error fetching endpoint analytics: {}", e.getMessage(), e);
+            String errorMessage = e.getMessage() != null ? e.getMessage() : "Internal server error";
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", errorMessage, "details", e.getClass().getSimpleName()));
+        }
+    }
+
     // Request DTOs
     public static class CreateEndpointRequest {
         public String name;
@@ -221,6 +277,8 @@ public class ApiEndpointController {
         public String method;
         public java.util.Map<String, String> headers;
         public String body;
+        public Boolean recurringEnabled;
+        public String recurringInterval;
     }
 
     public static class UpdateEndpointRequest {
@@ -229,5 +287,7 @@ public class ApiEndpointController {
         public String method;
         public java.util.Map<String, String> headers;
         public String body;
+        public Boolean recurringEnabled;
+        public String recurringInterval;
     }
 }

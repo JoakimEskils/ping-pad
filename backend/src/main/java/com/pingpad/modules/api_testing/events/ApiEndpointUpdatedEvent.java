@@ -17,4 +17,6 @@ public class ApiEndpointUpdatedEvent implements Event {
     private String method;
     private String headers;
     private String body;
+    private Boolean recurringEnabled;
+    private String recurringInterval;
 }

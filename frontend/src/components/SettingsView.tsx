@@ -31,6 +31,23 @@ export default function SettingsView({ user }: SettingsViewProps) {
   const [showKeyValue, setShowKeyValue] = useState<Record<number, boolean>>({});
   const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8080';
 
+  // Profile state
+  const [userName, setUserName] = useState(user.name);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
+
+  // Password state
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   useEffect(() => {
     if (!isTestUser) {
       loadApiKeys();
@@ -137,6 +154,97 @@ export default function SettingsView({ user }: SettingsViewProps) {
   const maskKeyValue = (value: string) => {
     if (value.length <= 8) return '••••••••';
     return value.substring(0, 4) + '••••••••' + value.substring(value.length - 4);
+  };
+
+  const handleUpdateProfile = async () => {
+    if (!userName.trim()) {
+      setProfileError('Name is required');
+      return;
+    }
+
+    setIsSavingProfile(true);
+    setProfileError(null);
+    setProfileSuccess(null);
+
+    try {
+      const response = await fetch(`${backendUrl}/api/user/me`, {
+        method: 'PUT',
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: userName.trim()
+        })
+      });
+
+      if (response.ok) {
+        setProfileSuccess('Profile updated successfully');
+        setTimeout(() => setProfileSuccess(null), 5000);
+      } else {
+        const errorData = await response.json();
+        setProfileError(errorData.error || 'Failed to update profile');
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      setProfileError('Failed to update profile');
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  const handleUpdatePassword = async () => {
+    setPasswordError(null);
+    setPasswordSuccess(null);
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordError('All password fields are required');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('New passwords do not match');
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+
+    try {
+      const response = await fetch(`${backendUrl}/api/user/me/password`, {
+        method: 'PUT',
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          currentPassword,
+          newPassword
+        })
+      });
+
+      if (response.ok) {
+        setPasswordSuccess('Password updated successfully');
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        setTimeout(() => setPasswordSuccess(null), 5000);
+      } else {
+        const errorData = await response.json();
+        setPasswordError(errorData.error || 'Failed to update password');
+      }
+    } catch (error) {
+      console.error('Error updating password:', error);
+      setPasswordError('Failed to update password');
+    } finally {
+      setIsUpdatingPassword(false);
+    }
   };
 
   if (isTestUser) {
@@ -288,13 +396,40 @@ export default function SettingsView({ user }: SettingsViewProps) {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>
-              <Input id="name" defaultValue="John Doe" />
+              <Input 
+                id="name" 
+                value={userName}
+                onChange={(e) => setUserName(e.target.value)}
+                placeholder="Enter your name"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email Address</Label>
-              <Input id="email" type="email" defaultValue="john@example.com" />
+              <Input 
+                id="email" 
+                type="email" 
+                value={user.email}
+                disabled
+                className="bg-slate-50 cursor-not-allowed"
+              />
+              <p className="text-xs text-slate-500">Email cannot be changed</p>
             </div>
-            <Button>Save Changes</Button>
+            {profileError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                <p className="text-sm text-red-700">{profileError}</p>
+              </div>
+            )}
+            {profileSuccess && (
+              <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                <p className="text-sm text-green-700">{profileSuccess}</p>
+              </div>
+            )}
+            <Button 
+              onClick={handleUpdateProfile}
+              disabled={isSavingProfile || userName.trim() === user.name}
+            >
+              {isSavingProfile ? 'Saving...' : 'Save Changes'}
+            </Button>
           </CardContent>
         </Card>
 
@@ -412,18 +547,82 @@ export default function SettingsView({ user }: SettingsViewProps) {
               <Shield className="h-5 w-5" />
               Security
             </CardTitle>
-            <CardDescription>Manage your security settings</CardDescription>
+            <CardDescription>Change your password</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="current-password">Current Password</Label>
-              <Input id="current-password" type="password" />
+              <div className="relative">
+                <Input 
+                  id="current-password" 
+                  type={showCurrentPassword ? "text" : "password"}
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="Enter current password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="new-password">New Password</Label>
-              <Input id="new-password" type="password" />
+              <div className="relative">
+                <Input 
+                  id="new-password" 
+                  type={showNewPassword ? "text" : "password"}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Enter new password (min 6 characters)"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
-            <Button>Update Password</Button>
+            <div className="space-y-2">
+              <Label htmlFor="confirm-password">Confirm New Password</Label>
+              <div className="relative">
+                <Input 
+                  id="confirm-password" 
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm new password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+            {passwordError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                <p className="text-sm text-red-700">{passwordError}</p>
+              </div>
+            )}
+            {passwordSuccess && (
+              <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                <p className="text-sm text-green-700">{passwordSuccess}</p>
+              </div>
+            )}
+            <Button 
+              onClick={handleUpdatePassword}
+              disabled={isUpdatingPassword || !currentPassword || !newPassword || !confirmPassword}
+            >
+              {isUpdatingPassword ? 'Updating...' : 'Update Password'}
+            </Button>
           </CardContent>
         </Card>
       </div>

@@ -21,4 +21,6 @@ public class ApiEndpointCreatedEvent implements Event {
     private String headers;
     private String body;
     private Long userId;
+    private Boolean recurringEnabled;
+    private String recurringInterval;
 }

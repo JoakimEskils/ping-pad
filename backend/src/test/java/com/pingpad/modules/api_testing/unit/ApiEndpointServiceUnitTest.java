@@ -74,7 +74,7 @@ class ApiEndpointServiceUnitTest {
         doNothing().when(eventHandler).handle(any(Event.class));
 
         // Act
-        UUID result = apiEndpointService.createEndpoint(name, url, method, headers, body, testUserId);
+        UUID result = apiEndpointService.createEndpoint(name, url, method, headers, body, testUserId, false, null);
 
         // Assert
         assertNotNull(result);
@@ -94,7 +94,7 @@ class ApiEndpointServiceUnitTest {
         when(eventStore.loadAggregate(eq(testEndpointId), eq(ApiEndpointAggregate.AGGREGATE_TYPE), any()))
                 .thenAnswer(invocation -> {
                     ApiEndpointAggregate aggregate = new ApiEndpointAggregate(testEndpointId, 1);
-                    aggregate.create("Old Name", "https://api.example.com/old", "GET", null, null, testUserId);
+                    aggregate.create("Old Name", "https://api.example.com/old", "GET", null, null, testUserId, false, null);
                     aggregate.markEventsAsCommitted();
                     return aggregate;
                 });
@@ -111,7 +111,7 @@ class ApiEndpointServiceUnitTest {
         doNothing().when(eventHandler).handleUpdate(any(), any(ApiEndpointUpdatedEvent.class));
 
         // Act
-        apiEndpointService.updateEndpoint(testEndpointId, newName, newUrl, newMethod, newHeaders, newBody);
+        apiEndpointService.updateEndpoint(testEndpointId, newName, newUrl, newMethod, newHeaders, newBody, null, null);
 
         // Assert
         verify(eventStore).appendEvents(eq(testEndpointId), eq(ApiEndpointAggregate.AGGREGATE_TYPE), anyInt(), anyList());
@@ -125,7 +125,7 @@ class ApiEndpointServiceUnitTest {
         when(eventStore.loadAggregate(eq(testEndpointId), eq(ApiEndpointAggregate.AGGREGATE_TYPE), any()))
                 .thenAnswer(invocation -> {
                     ApiEndpointAggregate aggregate = new ApiEndpointAggregate(testEndpointId, 1);
-                    aggregate.create("Test", "https://api.example.com/test", "GET", null, null, testUserId);
+                    aggregate.create("Test", "https://api.example.com/test", "GET", null, null, testUserId, false, null);
                     aggregate.markEventsAsCommitted();
                     return aggregate;
                 });

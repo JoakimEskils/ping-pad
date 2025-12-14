@@ -1,5 +1,7 @@
 package com.pingpad.modules.api_testing.models;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.pingpad.modules.user_management.models.User;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -26,6 +28,7 @@ public class ApiTestResult {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
+    @JsonIgnore
     private User user;
 
     @Column(name = "status_code")
@@ -47,6 +50,7 @@ public class ApiTestResult {
     private Boolean success;
 
     @Column(name = "timestamp", nullable = false)
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime timestamp;
 
     @PrePersist

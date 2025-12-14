@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
@@ -40,4 +41,14 @@ public class ApiEndpointProjection {
 
     @Column(name = "user_id", nullable = false)
     private Long userId;
+
+    @Column(name = "recurring_enabled", nullable = false)
+    @Builder.Default
+    private Boolean recurringEnabled = false;
+
+    @Column(name = "recurring_interval")
+    private String recurringInterval;
+
+    @Column(name = "last_run_at")
+    private LocalDateTime lastRunAt;
 }

@@ -6,6 +6,7 @@ import Sidebar from './Sidebar';
 import DashboardView from './DashboardView';
 import ApiEndpoints from './ApiEndpoints';
 import SettingsView from './SettingsView';
+import AlarmsView from './AlarmsView';
 import { Button } from './ui/button';
 
 interface DashboardProps {
@@ -22,6 +23,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   const getActiveView = () => {
     if (location.pathname.startsWith('/settings')) return 'settings';
     if (location.pathname.startsWith('/endpoints')) return 'endpoints';
+    if (location.pathname.startsWith('/alarms')) return 'alarms';
     return 'dashboard';
   };
 
@@ -32,6 +34,9 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
         break;
       case 'endpoints':
         navigate('/endpoints');
+        break;
+      case 'alarms':
+        navigate('/alarms');
         break;
       case 'settings':
         navigate('/settings');
@@ -85,6 +90,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
           <Routes>
             <Route path="/dashboard" element={<DashboardView />} />
             <Route path="/endpoints" element={<ApiEndpoints />} />
+            <Route path="/alarms" element={<AlarmsView />} />
             <Route path="/settings" element={<SettingsView user={user} />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
