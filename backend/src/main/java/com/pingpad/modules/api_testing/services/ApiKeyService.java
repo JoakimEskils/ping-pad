@@ -4,6 +4,7 @@ import com.pingpad.modules.api_testing.models.ApiKey;
 import com.pingpad.modules.api_testing.repositories.ApiKeyRepository;
 import com.pingpad.modules.user_management.models.User;
 import com.pingpad.modules.user_management.repositories.UserRepository;
+import com.pingpad.modules.cache.services.CacheService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,20 +23,57 @@ import java.util.Optional;
 public class ApiKeyService {
     private final ApiKeyRepository apiKeyRepository;
     private final UserRepository userRepository;
+    private final CacheService cacheService;
+
+    private static final String CACHE_KEY_PREFIX = "apikey:";
+    private static final String CACHE_KEY_USER_PREFIX = "apikey:user:";
 
     /**
      * Get all API keys for a user.
+     * Uses Cache-Aside pattern: checks cache first, then database.
      */
     public List<ApiKey> getUserApiKeys(Long userId) {
-        return apiKeyRepository.findByUserId(userId);
+        String cacheKey = CACHE_KEY_USER_PREFIX + userId;
+        
+        // Try cache first
+        return cacheService.getList(cacheKey, ApiKey.class)
+            .orElseGet(() -> {
+                // Cache miss - load from database
+                List<ApiKey> apiKeys = apiKeyRepository.findByUserId(userId);
+                
+                // Populate cache for future reads
+                cacheService.putList(cacheKey, apiKeys);
+                return apiKeys;
+            });
     }
 
     /**
      * Get a specific API key by ID and user ID.
+     * Uses Cache-Aside pattern: checks cache first, then database.
      */
     public Optional<ApiKey> getApiKey(Long userId, Long apiKeyId) {
-        return apiKeyRepository.findById(apiKeyId)
+        String cacheKey = CACHE_KEY_PREFIX + apiKeyId;
+        
+        // Try cache first
+        Optional<ApiKey> cached = cacheService.get(cacheKey, ApiKey.class);
+        if (cached.isPresent()) {
+            ApiKey key = cached.get();
+            // Verify it belongs to the user
+            if (key.getUser().getId().equals(userId)) {
+                return cached;
+            }
+            // Cache contains wrong user's key, remove it
+            cacheService.delete(cacheKey);
+        }
+        
+        // Cache miss or wrong user - load from database
+        Optional<ApiKey> apiKey = apiKeyRepository.findById(apiKeyId)
             .filter(key -> key.getUser().getId().equals(userId));
+        
+        // Populate cache if found
+        apiKey.ifPresent(key -> cacheService.put(cacheKey, key));
+        
+        return apiKey;
     }
 
     /**
@@ -60,7 +98,15 @@ public class ApiKeyService {
             .keyValue(keyValue) // TODO: Encrypt before storing in production
             .build();
 
-        return apiKeyRepository.save(apiKey);
+        apiKey = apiKeyRepository.save(apiKey);
+        
+        // Write-Through: Update cache immediately after DB write
+        cacheService.put(CACHE_KEY_PREFIX + apiKey.getId(), apiKey);
+        
+        // Invalidate user's API key list cache since it's now stale
+        cacheService.delete(CACHE_KEY_USER_PREFIX + userId);
+        
+        return apiKey;
     }
 
     /**
@@ -87,7 +133,15 @@ public class ApiKeyService {
             apiKey.setKeyValue(keyValue);
         }
 
-        return apiKeyRepository.save(apiKey);
+        apiKey = apiKeyRepository.save(apiKey);
+        
+        // Write-Through: Update cache immediately after DB write
+        cacheService.put(CACHE_KEY_PREFIX + apiKey.getId(), apiKey);
+        
+        // Invalidate user's API key list cache since it's now stale
+        cacheService.delete(CACHE_KEY_USER_PREFIX + userId);
+        
+        return apiKey;
     }
 
     /**
@@ -103,5 +157,11 @@ public class ApiKeyService {
         }
 
         apiKeyRepository.delete(apiKey);
+        
+        // Write-Through for deletes: remove from cache immediately
+        cacheService.delete(CACHE_KEY_PREFIX + apiKeyId);
+        
+        // Invalidate user's API key list cache since it's now stale
+        cacheService.delete(CACHE_KEY_USER_PREFIX + userId);
     }
 }

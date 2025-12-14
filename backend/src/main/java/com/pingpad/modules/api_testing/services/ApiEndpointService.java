@@ -9,6 +9,7 @@ import com.pingpad.modules.api_testing.projections.ApiEndpointProjection;
 import com.pingpad.modules.api_testing.projections.ApiEndpointProjectionRepository;
 import com.pingpad.modules.eventsourcing.core.EventStore;
 import com.pingpad.modules.eventsourcing.core.Event;
+import com.pingpad.modules.cache.services.CacheService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,10 @@ public class ApiEndpointService {
     private final EventStore eventStore;
     private final ApiEndpointProjectionRepository projectionRepository;
     private final ApiEndpointEventHandler eventHandler;
+    private final CacheService cacheService;
+
+    private static final String CACHE_KEY_PREFIX = "endpoint:";
+    private static final String CACHE_KEY_USER_PREFIX = "endpoint:user:";
 
     /**
      * Create a new API endpoint.
@@ -87,17 +92,41 @@ public class ApiEndpointService {
 
     /**
      * Get an API endpoint by ID (from read model).
+     * Uses Cache-Aside pattern: checks cache first, then database.
      */
     public ApiEndpointProjection getEndpoint(UUID endpointId) {
-        return projectionRepository.findById(endpointId)
-            .orElseThrow(() -> new IllegalArgumentException("API endpoint not found: " + endpointId));
+        String cacheKey = CACHE_KEY_PREFIX + endpointId;
+        
+        // Try cache first
+        return cacheService.get(cacheKey, ApiEndpointProjection.class)
+            .orElseGet(() -> {
+                // Cache miss - load from database
+                ApiEndpointProjection endpoint = projectionRepository.findById(endpointId)
+                    .orElseThrow(() -> new IllegalArgumentException("API endpoint not found: " + endpointId));
+                
+                // Populate cache for future reads
+                cacheService.put(cacheKey, endpoint);
+                return endpoint;
+            });
     }
 
     /**
      * Get all API endpoints for a user (from read model).
+     * Uses Cache-Aside pattern: checks cache first, then database.
      */
     public List<ApiEndpointProjection> getEndpointsByUser(Long userId) {
-        return projectionRepository.findByUserId(userId);
+        String cacheKey = CACHE_KEY_USER_PREFIX + userId;
+        
+        // Try cache first
+        return cacheService.getList(cacheKey, ApiEndpointProjection.class)
+            .orElseGet(() -> {
+                // Cache miss - load from database
+                List<ApiEndpointProjection> endpoints = projectionRepository.findByUserId(userId);
+                
+                // Populate cache for future reads
+                cacheService.putList(cacheKey, endpoints);
+                return endpoints;
+            });
     }
 
     /**
