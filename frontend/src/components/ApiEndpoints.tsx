@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Play, Eye, ChevronDown, ChevronRight, Calendar, Clock } from 'lucide-react';
+import { Plus, Trash2, Play, Eye, ChevronDown, ChevronRight, Calendar, Clock, X, AlertCircle, CheckCircle2, Info, Edit } from 'lucide-react';
 import type { ApiEndpoint } from '../types';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
@@ -12,69 +12,18 @@ import { Textarea } from './ui/textarea';
 import EndpointDetail from './EndpointDetail';
 import { getAuthHeaders } from '../utils/auth';
 
-// Generate dummy endpoints
-const generateDummyEndpoints = (): ApiEndpoint[] => {
-  const endpoints: ApiEndpoint[] = [
-    {
-      id: '1',
-      name: 'User Authentication API',
-      url: 'https://api.example.com/v1/auth/login',
-      method: 'POST' as const,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'user@example.com', password: '***' }, null, 2),
-      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-      updatedAt: new Date(Date.now() - 1 * 60 * 60 * 1000),
-    },
-    {
-      id: '2',
-      name: 'Get User Profile',
-      url: 'https://api.example.com/v1/users/me',
-      method: 'GET' as const,
-      headers: { 'Authorization': 'Bearer token123' },
-      createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-      updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    },
-    {
-      id: '3',
-      name: 'Create New Post',
-      url: 'https://api.example.com/v1/posts',
-      method: 'POST' as const,
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer token123' },
-      body: JSON.stringify({ title: 'New Post', content: 'Post content' }, null, 2),
-      createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-      updatedAt: new Date(Date.now() - 3 * 60 * 60 * 1000),
-    },
-    {
-      id: '4',
-      name: 'Update Product',
-      url: 'https://api.example.com/v1/products/123',
-      method: 'PUT' as const,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'Updated Product', price: 99.99 }, null, 2),
-      createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
-      updatedAt: new Date(Date.now() - 4 * 60 * 60 * 1000),
-    },
-    {
-      id: '5',
-      name: 'Delete Comment',
-      url: 'https://api.example.com/v1/comments/456',
-      method: 'DELETE' as const,
-      headers: { 'Authorization': 'Bearer token123' },
-      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-      updatedAt: new Date(Date.now() - 30 * 60 * 1000),
-    },
-  ];
-  
-  return endpoints;
-};
 
 export default function ApiEndpoints() {
   const [endpoints, setEndpoints] = useState<ApiEndpoint[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingEndpointId, setEditingEndpointId] = useState<string | null>(null);
   const [selectedEndpoint, setSelectedEndpoint] = useState<ApiEndpoint | null>(null);
   const [expandedEndpoints, setExpandedEndpoints] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [isTesting, setIsTesting] = useState<string | null>(null);
+  const [apiKeys, setApiKeys] = useState<Array<{ id: number; name: string; keyValue: string }>>([]);
+  const [selectedApiKeyId, setSelectedApiKeyId] = useState<string>('');
+  const [apiKeyHeaderName, setApiKeyHeaderName] = useState('Authorization');
   const [newEndpoint, setNewEndpoint] = useState({
     name: '',
     url: '',
@@ -82,15 +31,82 @@ export default function ApiEndpoints() {
     headers: '',
     body: ''
   });
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [dialogError, setDialogError] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<{
+    endpointId: string;
+    statusCode?: number;
+    responseTime?: number;
+    success: boolean;
+    error?: string;
+    responseBody?: string;
+  } | null>(null);
 
-  // Load endpoints on component mount
+  // Load endpoints and API keys on component mount
   useEffect(() => {
     loadEndpoints();
+    loadApiKeys();
   }, []);
+
+  const loadApiKeys = async () => {
+    try {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8080';
+      const response = await fetch(`${backendUrl}/api/api-keys`, {
+        headers: getAuthHeaders(),
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setApiKeys(data);
+      }
+    } catch (error) {
+      console.error('Error loading API keys:', error);
+    }
+  };
+
+  const handleApiKeyChange = (apiKeyId: string) => {
+    setSelectedApiKeyId(apiKeyId);
+    
+    if (apiKeyId && apiKeyId !== '') {
+      const selectedKey = apiKeys.find(k => k.id.toString() === apiKeyId);
+      if (selectedKey) {
+        // Determine the header format based on header name
+        let headerValue = selectedKey.keyValue;
+        if (apiKeyHeaderName === 'Authorization') {
+          // Check if it already has "Bearer" or "Basic" prefix
+          if (!headerValue.startsWith('Bearer ') && !headerValue.startsWith('Basic ')) {
+            headerValue = `Bearer ${selectedKey.keyValue}`;
+          }
+        }
+        
+        // Add or update the header
+        const currentHeaders = newEndpoint.headers.split('\n').filter(h => h.trim());
+        const headerLine = `${apiKeyHeaderName}: ${headerValue}`;
+        
+        // Remove existing header with same name if exists
+        const filteredHeaders = currentHeaders.filter(h => {
+          const [key] = h.split(':');
+          return key && key.trim() !== apiKeyHeaderName;
+        });
+        
+        // Add new header
+        filteredHeaders.push(headerLine);
+        setNewEndpoint(prev => ({ ...prev, headers: filteredHeaders.join('\n') }));
+      }
+    } else {
+      // Remove the header if API key is deselected
+      const currentHeaders = newEndpoint.headers.split('\n').filter(h => {
+        const [key] = h.split(':');
+        return key && key.trim() !== apiKeyHeaderName;
+      });
+      setNewEndpoint(prev => ({ ...prev, headers: currentHeaders.join('\n') }));
+    }
+  };
 
   const loadEndpoints = async () => {
     try {
-      // Try to load from API, fallback to dummy data
       const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8080';
       const response = await fetch(`${backendUrl}/api/endpoints`, {
         headers: getAuthHeaders(),
@@ -99,35 +115,86 @@ export default function ApiEndpoints() {
       
       if (response.ok) {
         const data = await response.json();
-        const endpoints = data.map((endpoint: any) => ({
-          ...endpoint,
-          id: endpoint.id.toString(),
-          createdAt: new Date(endpoint.createdAt),
-          updatedAt: new Date(endpoint.updatedAt)
-        }));
+        const endpoints = data.map((endpoint: any) => {
+          // Parse headers from string format
+          const headers: Record<string, string> = {};
+          if (endpoint.headers) {
+            endpoint.headers.split('\n').forEach((line: string) => {
+              const [key, ...valueParts] = line.split(':');
+              if (key && valueParts.length > 0) {
+                headers[key.trim()] = valueParts.join(':').trim();
+              }
+            });
+          }
+          
+          return {
+            ...endpoint,
+            id: endpoint.id?.toString() || endpoint.uuid_id?.toString() || String(endpoint.id),
+            headers,
+            createdAt: endpoint.createdAt ? new Date(endpoint.createdAt) : new Date(),
+            updatedAt: endpoint.updatedAt ? new Date(endpoint.updatedAt) : new Date()
+          };
+        });
         setEndpoints(endpoints);
       } else {
-        // Use dummy data if API fails
-        setEndpoints(generateDummyEndpoints());
+        console.error('Failed to load endpoints:', response.status, response.statusText);
+        setEndpoints([]);
       }
     } catch (error) {
       console.error('Error loading endpoints:', error);
-      // Use dummy data on error
-      setEndpoints(generateDummyEndpoints());
+      setEndpoints([]);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleCreateEndpoint = () => {
+    setEditingEndpointId(null);
+    setDialogError(null);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setNewEndpoint({ name: '', url: '', method: 'GET', headers: '', body: '' });
+    setSelectedApiKeyId('');
+    setApiKeyHeaderName('Authorization');
+    setIsModalOpen(true);
+  };
+
+  const handleEditEndpoint = (endpoint: ApiEndpoint) => {
+    setEditingEndpointId(endpoint.id);
+    setDialogError(null);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    
+    // Convert headers object to string format
+    const headersStr = Object.entries(endpoint.headers || {})
+      .map(([key, value]) => `${key}: ${value}`)
+      .join('\n');
+    
+    setNewEndpoint({
+      name: endpoint.name,
+      url: endpoint.url,
+      method: endpoint.method as any,
+      headers: headersStr,
+      body: endpoint.body || ''
+    });
+    setSelectedApiKeyId('');
+    setApiKeyHeaderName('Authorization');
     setIsModalOpen(true);
   };
 
   const handleSubmitEndpoint = async () => {
     if (!newEndpoint.name || !newEndpoint.url) {
-      alert('Please fill in all required fields');
+      setDialogError('Please fill in all required fields (Name and URL)');
+      setErrorMessage(null);
+      setSuccessMessage(null);
       return;
     }
+    
+    setDialogError(null);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    const isEditing = editingEndpointId !== null;
 
     const headers: Record<string, string> = {};
     if (newEndpoint.headers) {
@@ -145,8 +212,12 @@ export default function ApiEndpoints() {
 
     try {
       const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8080';
-      const response = await fetch(`${backendUrl}/api/endpoints`, {
-        method: 'POST',
+      const url = isEditing 
+        ? `${backendUrl}/api/endpoints/${editingEndpointId}`
+        : `${backendUrl}/api/endpoints`;
+      
+      const response = await fetch(url, {
+        method: isEditing ? 'PUT' : 'POST',
         headers: getAuthHeaders(),
         credentials: 'include',
         body: JSON.stringify({
@@ -160,54 +231,73 @@ export default function ApiEndpoints() {
 
       if (response.ok) {
         const data = await response.json();
+        // Parse headers from string format
+        const parsedHeaders: Record<string, string> = {};
+        if (data.headers) {
+          data.headers.split('\n').forEach((line: string) => {
+            const [key, ...valueParts] = line.split(':');
+            if (key && valueParts.length > 0) {
+              parsedHeaders[key.trim()] = valueParts.join(':').trim();
+            }
+          });
+        }
+        
         const endpoint = {
           ...data,
-          id: data.id.toString(),
-          createdAt: new Date(data.createdAt),
-          updatedAt: new Date(data.updatedAt)
+          id: data.id?.toString() || data.uuid_id?.toString() || data.id?.toString(),
+          headers: parsedHeaders,
+          createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
+          updatedAt: data.updatedAt ? new Date(data.updatedAt) : new Date()
         };
         setEndpoints(prev => [endpoint, ...prev]);
+        loadEndpoints(); // Reload to ensure consistency
         setNewEndpoint({ name: '', url: '', method: 'GET', headers: '', body: '' });
+        setSelectedApiKeyId('');
+        setApiKeyHeaderName('Authorization');
         setIsModalOpen(false);
+        setEditingEndpointId(null);
+        setSuccessMessage(isEditing ? 'Endpoint updated successfully!' : 'Endpoint created successfully!');
+        setDialogError(null);
+        setErrorMessage(null);
+        // Reload endpoints to show updated data
+        loadEndpoints();
+        // Clear success message after 5 seconds
+        setTimeout(() => setSuccessMessage(null), 5000);
       } else {
-        // If API fails, add to local state with dummy data
-        const newId = (Math.max(...endpoints.map(e => parseInt(e.id)), 0) + 1).toString();
-        const endpoint: ApiEndpoint = {
-          id: newId,
-          name: newEndpoint.name,
-          url: newEndpoint.url,
-          method: newEndpoint.method,
-          headers,
-          body: newEndpoint.body,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-        setEndpoints(prev => [endpoint, ...prev]);
-        setNewEndpoint({ name: '', url: '', method: 'GET', headers: '', body: '' });
-        setIsModalOpen(false);
+        let errorMsg = `Failed to ${isEditing ? 'update' : 'create'} endpoint (${response.status} ${response.statusText})`;
+        try {
+          const errorData = await response.json();
+          if (errorData.error) {
+            errorMsg = errorData.error;
+            if (errorData.details) {
+              errorMsg += ` - ${errorData.details}`;
+            }
+          } else {
+            errorMsg += ` - ${JSON.stringify(errorData)}`;
+          }
+        } catch {
+          const errorText = await response.text();
+          if (errorText) {
+            errorMsg += ` - ${errorText}`;
+          }
+        }
+        setDialogError(errorMsg);
+        setErrorMessage(null);
+        setSuccessMessage(null);
       }
     } catch (error) {
-      console.error('Error creating endpoint:', error);
-      // Add to local state even if API fails
-      const newId = (Math.max(...endpoints.map(e => parseInt(e.id)), 0) + 1).toString();
-      const endpoint: ApiEndpoint = {
-        id: newId,
-        name: newEndpoint.name,
-        url: newEndpoint.url,
-        method: newEndpoint.method,
-        headers,
-        body: newEndpoint.body,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      setEndpoints(prev => [endpoint, ...prev]);
-      setNewEndpoint({ name: '', url: '', method: 'GET', headers: '', body: '' });
-      setIsModalOpen(false);
+      console.error(`Error ${isEditing ? 'updating' : 'creating'} endpoint:`, error);
+      setDialogError(`Failed to ${isEditing ? 'update' : 'create'} endpoint. Please try again.`);
+      setErrorMessage(null);
+      setSuccessMessage(null);
     }
   };
 
   const handleTestEndpoint = async (endpoint: ApiEndpoint) => {
     setIsTesting(endpoint.id);
+    setTestResult(null);
+    setErrorMessage(null);
+    setSuccessMessage(null);
     
     try {
       const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8080';
@@ -218,13 +308,48 @@ export default function ApiEndpoints() {
       });
 
       if (response.ok) {
-        alert('Endpoint tested successfully!');
+        const result = await response.json();
+        setTestResult({
+          endpointId: endpoint.id,
+          statusCode: result.statusCode,
+          responseTime: result.responseTime,
+          success: result.success,
+          error: result.error,
+          responseBody: result.responseBody
+        });
+        if (result.success) {
+          setSuccessMessage('Test completed successfully!');
+          setTimeout(() => setSuccessMessage(null), 5000);
+        } else {
+          setErrorMessage(result.error || 'Test completed but returned an error');
+        }
+        // Reload endpoints to show updated data
+        loadEndpoints();
       } else {
-        alert('Test completed (using dummy data)');
+        let errorMsg = `Test failed (${response.status} ${response.statusText})`;
+        try {
+          const errorData = await response.json();
+          if (errorData.error) {
+            errorMsg = errorData.error;
+            if (errorData.details) {
+              errorMsg += ` - ${errorData.details}`;
+            }
+          } else {
+            errorMsg += ` - ${JSON.stringify(errorData)}`;
+          }
+        } catch {
+          const errorText = await response.text();
+          if (errorText) {
+            errorMsg += ` - ${errorText}`;
+          }
+        }
+        setErrorMessage(errorMsg);
+        setTestResult(null);
       }
     } catch (error) {
       console.error('Error testing endpoint:', error);
-      alert('Test completed (using dummy data)');
+      setErrorMessage('Failed to test endpoint. Please try again.');
+      setTestResult(null);
     } finally {
       setIsTesting(null);
     }
@@ -234,6 +359,9 @@ export default function ApiEndpoints() {
     if (!confirm('Are you sure you want to delete this endpoint?')) {
       return;
     }
+
+    setErrorMessage(null);
+    setSuccessMessage(null);
 
     try {
       const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8080';
@@ -250,18 +378,15 @@ export default function ApiEndpoints() {
           newSet.delete(endpointId);
           return newSet;
         });
+        setSuccessMessage('Endpoint deleted successfully');
+        setTimeout(() => setSuccessMessage(null), 5000);
       } else {
-        alert('Failed to delete endpoint');
+        const errorText = await response.text();
+        setErrorMessage(`Failed to delete endpoint: ${response.status} ${response.statusText}${errorText ? ` - ${errorText}` : ''}`);
       }
     } catch (error) {
       console.error('Error deleting endpoint:', error);
-      // Remove from local state even if API fails
-      setEndpoints(prev => prev.filter(e => e.id !== endpointId));
-      setExpandedEndpoints(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(endpointId);
-        return newSet;
-      });
+      setErrorMessage('Failed to delete endpoint. Please try again.');
     }
   };
 
@@ -309,6 +434,104 @@ export default function ApiEndpoints() {
           Create Endpoint
         </Button>
       </div>
+
+      {/* Error Message */}
+      {errorMessage && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-red-900">Error</p>
+                <p className="text-sm text-red-700 mt-1">{errorMessage}</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setErrorMessage(null)}
+                className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-100"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Success Message */}
+      {successMessage && (
+        <Card className="border-green-200 bg-green-50">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-green-900">Success</p>
+                <p className="text-sm text-green-700 mt-1">{successMessage}</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSuccessMessage(null)}
+                className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-100"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Test Result Display */}
+      {testResult && (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-blue-900">Test Result</p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setTestResult(null)}
+                    className="h-6 w-6 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-100"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <p className="text-blue-600 font-medium">Status Code</p>
+                    <p className="text-blue-900 font-mono">{testResult.statusCode || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-blue-600 font-medium">Response Time</p>
+                    <p className="text-blue-900 font-mono">{testResult.responseTime ? `${testResult.responseTime}ms` : 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-blue-600 font-medium">Success</p>
+                    <Badge className={testResult.success ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}>
+                      {testResult.success ? 'Yes' : 'No'}
+                    </Badge>
+                  </div>
+                  <div>
+                    <p className="text-blue-600 font-medium">Error</p>
+                    <p className="text-blue-900 text-xs">{testResult.error || 'None'}</p>
+                  </div>
+                </div>
+                {testResult.responseBody && (
+                  <div className="mt-3">
+                    <p className="text-blue-600 font-medium text-sm mb-2">Response Body (first 500 chars)</p>
+                    <pre className="bg-white border border-blue-200 rounded-md p-3 text-xs overflow-x-auto max-h-40 overflow-y-auto">
+                      {testResult.responseBody.substring(0, 500)}{testResult.responseBody.length > 500 ? '...' : ''}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Endpoints Table */}
       {endpoints.length === 0 ? (
@@ -376,6 +599,18 @@ export default function ApiEndpoints() {
 
                       {/* Actions */}
                       <div className="flex items-center gap-2 flex-shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditEndpoint(endpoint);
+                          }}
+                          className="h-8 w-8 p-0"
+                          title="Edit Endpoint"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -488,6 +723,18 @@ export default function ApiEndpoints() {
                               size="sm"
                               onClick={(e) => {
                                 e.stopPropagation();
+                                handleEditEndpoint(endpoint);
+                              }}
+                              className="gap-2"
+                            >
+                              <Edit className="h-4 w-4" />
+                              Edit
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 setSelectedEndpoint(endpoint);
                               }}
                               className="gap-2"
@@ -521,14 +768,32 @@ export default function ApiEndpoints() {
       )}
 
       {/* Create Endpoint Dialog */}
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+      <Dialog open={isModalOpen} onOpenChange={(open) => {
+        setIsModalOpen(open);
+        if (!open) {
+          // Reset form when closing
+          setEditingEndpointId(null);
+          setSelectedApiKeyId('');
+          setApiKeyHeaderName('Authorization');
+          setNewEndpoint({ name: '', url: '', method: 'GET', headers: '', body: '' });
+          setDialogError(null);
+          setErrorMessage(null);
+          setSuccessMessage(null);
+        }
+      }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Create API Endpoint</DialogTitle>
+            <DialogTitle>{editingEndpointId ? 'Edit API Endpoint' : 'Create API Endpoint'}</DialogTitle>
             <DialogDescription>
-              Add a new API endpoint to monitor and test
+              {editingEndpointId ? 'Update your API endpoint details' : 'Add a new API endpoint to monitor and test'}
             </DialogDescription>
           </DialogHeader>
+          {dialogError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-red-700">{dialogError}</p>
+            </div>
+          )}
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="name">Name *</Label>
@@ -566,6 +831,72 @@ export default function ApiEndpoints() {
               </Select>
             </div>
 
+            {/* API Key Selection */}
+            {apiKeys.length > 0 && (
+              <div className="space-y-2 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <Label className="text-sm font-semibold text-slate-900">Quick Add API Key (Optional)</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="api-key-select" className="text-xs">Select API Key</Label>
+                    <Select
+                      id="api-key-select"
+                      value={selectedApiKeyId}
+                      onChange={(e) => handleApiKeyChange(e.target.value)}
+                    >
+                      <option value="">None</option>
+                      {apiKeys.map((key) => (
+                        <option key={key.id} value={key.id.toString()}>
+                          {key.name}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="api-key-header" className="text-xs">Header Name</Label>
+                    <Select
+                      id="api-key-header"
+                      value={apiKeyHeaderName}
+                      onChange={(e) => {
+                        const newHeaderName = e.target.value;
+                        const oldHeaderName = apiKeyHeaderName;
+                        setApiKeyHeaderName(newHeaderName);
+                        // If an API key is selected, update the header with new name
+                        if (selectedApiKeyId && selectedApiKeyId !== '') {
+                          const selectedKey = apiKeys.find(k => k.id.toString() === selectedApiKeyId);
+                          if (selectedKey) {
+                            // Remove old header
+                            const currentHeaders = newEndpoint.headers.split('\n').filter(h => {
+                              const [key] = h.split(':');
+                              return key && key.trim() !== oldHeaderName;
+                            });
+                            
+                            // Add new header with updated name
+                            let headerValue = selectedKey.keyValue;
+                            if (newHeaderName === 'Authorization') {
+                              if (!headerValue.startsWith('Bearer ') && !headerValue.startsWith('Basic ')) {
+                                headerValue = `Bearer ${selectedKey.keyValue}`;
+                              }
+                            }
+                            currentHeaders.push(`${newHeaderName}: ${headerValue}`);
+                            setNewEndpoint(prev => ({ ...prev, headers: currentHeaders.join('\n') }));
+                          }
+                        }
+                      }}
+                    >
+                      <option value="Authorization">Authorization</option>
+                      <option value="X-API-Key">X-API-Key</option>
+                      <option value="X-Auth-Token">X-Auth-Token</option>
+                      <option value="Api-Key">Api-Key</option>
+                      <option value="X-Api-Key">X-Api-Key</option>
+                    </Select>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-600 mt-2">
+                  Select an API key to automatically add it to the headers below
+                </p>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="headers">Headers (one per line, format: Key: Value)</Label>
               <Textarea
@@ -595,7 +926,7 @@ export default function ApiEndpoints() {
                 Cancel
               </Button>
               <Button onClick={handleSubmitEndpoint}>
-                Create Endpoint
+                {editingEndpointId ? 'Update Endpoint' : 'Create Endpoint'}
               </Button>
             </div>
           </div>

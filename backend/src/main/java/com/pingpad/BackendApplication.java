@@ -22,7 +22,8 @@ import org.springframework.context.annotation.ComponentScan;
     "com.pingpad.modules.auth",
     "com.pingpad.modules.user_management", 
     "com.pingpad.modules.api_testing",
-    "com.pingpad.modules.shared"
+    "com.pingpad.modules.shared",
+    "com.pingpad.modules.eventsourcing"
 })
 public class BackendApplication {
     public static void main(String[] args) {

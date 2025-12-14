@@ -1,4 +1,5 @@
 import { LayoutDashboard, Activity, Settings, LogOut, X } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
 import { Button } from './ui/button';
 import { cn } from '../lib/utils';
 
@@ -12,28 +13,33 @@ interface SidebarProps {
 }
 
 export default function Sidebar({
-  activeView,
+  activeView: _activeView, // Keep for interface compatibility but use location instead
   onViewChange,
   onLogout,
   userName,
   isMobileOpen = false,
   onMobileToggle,
 }: SidebarProps) {
+  const location = useLocation();
+  
   const menuItems = [
     {
       id: 'dashboard',
       label: 'Dashboard',
       icon: LayoutDashboard,
+      path: '/dashboard',
     },
     {
       id: 'endpoints',
       label: 'My Endpoints',
       icon: Activity,
+      path: '/endpoints',
     },
     {
       id: 'settings',
       label: 'Settings',
       icon: Settings,
+      path: '/settings',
     },
   ];
 
@@ -93,10 +99,11 @@ export default function Sidebar({
           <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
             {menuItems.map((item) => {
               const Icon = item.icon;
-              const isActive = activeView === item.id;
+              const isActive = location.pathname.startsWith(item.path);
               return (
-                <button
+                <Link
                   key={item.id}
+                  to={item.path}
                   onClick={() => {
                     onViewChange(item.id);
                     onMobileToggle?.();
@@ -110,7 +117,7 @@ export default function Sidebar({
                 >
                   <Icon className={cn('h-5 w-5', isActive ? 'text-white' : 'text-slate-400')} />
                   <span>{item.label}</span>
-                </button>
+                </Link>
               );
             })}
           </nav>
