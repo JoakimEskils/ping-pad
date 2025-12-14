@@ -2,6 +2,29 @@
 
 A SaaS tool for testing REST API endpoints and logging webhooks — built with Spring Boot (backend) and React + Vite (frontend), using modular monolith architecture.
 
+## Table of Contents
+
+- [Local Development Setup](#local-development-setup)
+  - [Prerequisites](#prerequisites)
+  - [Clone the repository](#clone-the-repository)
+  - [Run the project with Docker Compose](#run-the-project-with-docker-compose)
+- [Architecture & Data Flow](#architecture--data-flow)
+  - [How it works](#how-it-works)
+- [Modular Monolith](#modular-monolith)
+  - [What is a Modular Monolith?](#what-is-a-modular-monolith)
+  - [Benefits](#benefits)
+  - [Module Structure](#module-structure)
+- [Event Sourcing](#event-sourcing)
+  - [What is Event Sourcing?](#what-is-event-sourcing)
+  - [Implementation Details](#implementation-details)
+  - [Database Schema](#database-schema)
+  - [Usage Example](#usage-example)
+  - [Configuration](#configuration)
+- [Database Models](#database-models)
+  - [Core Application Tables](#core-application-tables)
+  - [Event Sourcing Tables](#event-sourcing-tables)
+  - [Migration Management](#migration-management)
+
 ## Local Development Setup
 
 ### Prerequisites
@@ -83,6 +106,34 @@ This will build and start two containers:
 7. **Spring Boot** returns the result to frontend
 
 The Go Testing Engine provides high-performance HTTP testing with excellent concurrency, while Spring Boot handles business logic and data persistence via Postgres DB.
+
+## Modular Monolith
+
+PingPad is built using a **modular monolith** architecture pattern. This design organizes the application into well-defined modules within a single deployable unit, providing clear domain boundaries while maintaining the simplicity of a monolithic deployment.
+
+### What is a Modular Monolith?
+
+A modular monolith is an architectural pattern that structures an application as a collection of loosely coupled modules within a single codebase and deployment. Unlike a traditional monolith where code is organized by technical layers (controllers, services, repositories), a modular monolith organizes code by business domains or features, with each module encapsulating its own domain logic, data models, and interfaces.
+
+### Benefits
+
+- **Clear Boundaries**: Each module has well-defined responsibilities and interfaces
+- **Easier Maintenance**: Changes to one module have minimal impact on others
+- **Simplified Deployment**: Single deployable unit reduces operational complexity
+- **Future Flexibility**: Modules can be extracted into microservices later if needed
+- **Better Organization**: Code is organized by business domain rather than technical layers
+
+### Module Structure
+
+The backend is organized into the following modules:
+
+- **Auth Module**: Handles authentication, authorization, JWT token management, and security configurations
+- **User Management Module**: Manages user data, profiles, and user-related operations
+- **API Testing Module**: Core functionality for creating, managing, and testing API endpoints
+- **Event Sourcing Module**: Provides event sourcing infrastructure for audit trails and state management
+- **Shared Module**: Common utilities, configurations, and cross-cutting concerns used across modules
+
+Each module is self-contained with its own controllers, services, models, and repositories, communicating through well-defined interfaces. This structure enables independent development and testing of each module while maintaining the operational simplicity of a single application.
 
 ## Event Sourcing
 
