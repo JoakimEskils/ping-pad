@@ -142,6 +142,7 @@ public class CacheService {
      */
     @SuppressWarnings("unchecked")
     public <T> Optional<List<T>> getList(String key, Class<T> elementType) {
-        return get(key, List.class);
+        Optional<List> cachedList = get(key, List.class);
+        return cachedList.map(list -> (List<T>) list);
     }
 }

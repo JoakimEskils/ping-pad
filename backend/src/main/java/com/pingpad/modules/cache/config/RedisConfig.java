@@ -1,7 +1,8 @@
 package com.pingpad.modules.cache.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.type.TypeFactory;
+import com.fasterxml.jackson.databind.jsontype.PolymorphicTypeValidator;
+import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -46,8 +47,9 @@ public class RedisConfig {
         // Use JSON serializer for values
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
+        PolymorphicTypeValidator typeValidator = LaissezFaireSubTypeValidator.instance;
         objectMapper.activateDefaultTyping(
-            TypeFactory.defaultInstance(),
+            typeValidator,
             ObjectMapper.DefaultTyping.NON_FINAL
         );
         GenericJackson2JsonRedisSerializer valueSerializer = new GenericJackson2JsonRedisSerializer(objectMapper);
