@@ -2,6 +2,57 @@
 
 A SaaS tool for testing REST API endpoints and logging webhooks — built with Spring Boot (backend) and React + Vite (frontend), using modular monolith architecture.
 
+## Testing Structure
+
+PingPad uses a comprehensive testing strategy with clear separation between **unit tests** and **system tests** to ensure both isolated component testing and end-to-end feature validation.
+
+### Unit Tests
+
+Unit tests focus on testing individual components in isolation with all dependencies mocked. They are fast, deterministic, and verify that each component works correctly in isolation.
+
+**Java Backend** (`backend/src/test/java/com/pingpad/modules/api_testing/unit/`):
+- **Controller Tests**: Test REST endpoints with mocked services
+- **Service Tests**: Test business logic with mocked repositories and external dependencies
+- **gRPC Client Tests**: Test gRPC communication with mocked gRPC stubs
+
+**Go API Testing Engine**:
+- **Engine Tests** (`pkg/testing/engine_test.go`): Test HTTP request execution, retry logic, and metrics
+- **gRPC Server Tests** (`internal/grpc/server_test.go`): Test gRPC protocol handling and request/response conversion
+
+### System Tests
+
+System tests verify complete flows through multiple services, testing real integrations including databases, gRPC communication, and event sourcing. They validate that entire features work end-to-end.
+
+**Java Backend** (`backend/src/test/java/com/pingpad/modules/api_testing/system/`):
+- **Flow Tests**: Test complete CRUD operations (create, read, update, delete) through the full stack
+- **Integration Tests**: Test database persistence, event sourcing, and cache interactions
+- **gRPC Integration**: Test real gRPC communication between Java backend and Go service
+
+**Go API Testing Engine** (`api-testing-engine/system/`):
+- **gRPC Flow Tests**: Test complete gRPC request/response cycles with real HTTP requests
+- **End-to-End Tests**: Verify the entire testing engine workflow from gRPC call to HTTP execution
+
+### Running Tests
+
+```bash
+# Java Backend - Unit Tests
+cd backend && mvn test -Dtest="**/unit/**"
+
+# Java Backend - System Tests
+cd backend && mvn test -Dtest="**/system/**"
+
+# Go - All Tests
+cd api-testing-engine && go test ./...
+
+# Go - Unit Tests Only
+cd api-testing-engine && go test ./pkg/testing/... ./internal/grpc/...
+
+# Go - System Tests Only
+cd api-testing-engine && go test ./system/...
+```
+
+For more details, see [TEST_STRUCTURE.md](TEST_STRUCTURE.md).
+
 ## Table of Contents
 
 - [Local Development Setup](#local-development-setup)
@@ -10,6 +61,12 @@ A SaaS tool for testing REST API endpoints and logging webhooks — built with S
   - [Run the project with Docker Compose](#run-the-project-with-docker-compose)
 - [Architecture & Data Flow](#architecture--data-flow)
   - [How it works](#how-it-works)
+- [gRPC Communication](#grpc-communication)
+  - [Why gRPC?](#why-grpc)
+  - [Implementation Details](#implementation-details)
+  - [Configuration](#configuration)
+  - [Benefits Over JSON REST](#benefits-over-json-rest)
+  - [Migration Notes](#migration-notes)
 - [Nginx](#nginx)
 - [Modular Monolith](#modular-monolith)
   - [What is a Modular Monolith?](#what-is-a-modular-monolith)
