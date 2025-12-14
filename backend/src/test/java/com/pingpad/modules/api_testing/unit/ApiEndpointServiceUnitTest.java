@@ -21,7 +21,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static java.util.Collections.emptyList;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -91,8 +90,7 @@ class ApiEndpointServiceUnitTest {
     @Test
     void testUpdateEndpoint_Success() {
         // Arrange
-        // Mock getEvents to return empty list since we're mocking loadAggregate directly
-        when(eventStore.getEvents(testEndpointId)).thenReturn(emptyList());
+        // Note: getEvents() is not needed since we're mocking loadAggregate directly
         when(eventStore.loadAggregate(eq(testEndpointId), eq(ApiEndpointAggregate.AGGREGATE_TYPE), any()))
                 .thenAnswer(invocation -> {
                     ApiEndpointAggregate aggregate = new ApiEndpointAggregate(testEndpointId, 1);
@@ -123,8 +121,7 @@ class ApiEndpointServiceUnitTest {
     @Test
     void testDeleteEndpoint_Success() {
         // Arrange
-        // Mock getEvents to return empty list since we're mocking loadAggregate directly
-        when(eventStore.getEvents(testEndpointId)).thenReturn(emptyList());
+        // Note: getEvents() is not needed since we're mocking loadAggregate directly
         when(eventStore.loadAggregate(eq(testEndpointId), eq(ApiEndpointAggregate.AGGREGATE_TYPE), any()))
                 .thenAnswer(invocation -> {
                     ApiEndpointAggregate aggregate = new ApiEndpointAggregate(testEndpointId, 1);

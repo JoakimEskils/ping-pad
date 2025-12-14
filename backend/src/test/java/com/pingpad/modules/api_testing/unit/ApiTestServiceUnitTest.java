@@ -16,6 +16,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import testing.ApiTestingServiceGrpc;
 import testing.Testing;
@@ -87,8 +88,6 @@ class ApiTestServiceUnitTest {
                 .build();
 
         ApiTestingServiceGrpc.ApiTestingServiceBlockingStub stub = mock(ApiTestingServiceGrpc.ApiTestingServiceBlockingStub.class);
-        when(grpcChannel).thenReturn(grpcChannel);
-        when(ApiTestingServiceGrpc.newBlockingStub(grpcChannel)).thenReturn(stub);
         when(stub.testEndpoint(any(Testing.TestRequest.class))).thenReturn(grpcResult);
 
         when(apiEndpointService.getEndpoint(testEndpointId)).thenReturn(testEndpoint);
@@ -106,20 +105,24 @@ class ApiTestServiceUnitTest {
 
         when(testResultRepository.save(any(ApiTestResult.class))).thenReturn(savedResult);
 
-        // Act
-        ApiTestResult result = apiTestService.testEndpoint(testEndpointId, testUserId);
+        // Act - Use MockedStatic to mock the static method
+        try (MockedStatic<ApiTestingServiceGrpc> mockedGrpc = mockStatic(ApiTestingServiceGrpc.class)) {
+            mockedGrpc.when(() -> ApiTestingServiceGrpc.newBlockingStub(grpcChannel)).thenReturn(stub);
+            
+            ApiTestResult result = apiTestService.testEndpoint(testEndpointId, testUserId);
 
-        // Assert
-        assertNotNull(result);
-        assertEquals(200, result.getStatusCode());
-        assertEquals(150L, result.getResponseTime());
-        assertTrue(result.getSuccess());
-        assertNull(result.getError());
+            // Assert
+            assertNotNull(result);
+            assertEquals(200, result.getStatusCode());
+            assertEquals(150L, result.getResponseTime());
+            assertTrue(result.getSuccess());
+            assertNull(result.getError());
 
-        verify(apiEndpointService).getEndpoint(testEndpointId);
-        verify(userRepository).findById(testUserId);
-        verify(stub).testEndpoint(any(Testing.TestRequest.class));
-        verify(testResultRepository).save(any(ApiTestResult.class));
+            verify(apiEndpointService).getEndpoint(testEndpointId);
+            verify(userRepository).findById(testUserId);
+            verify(stub).testEndpoint(any(Testing.TestRequest.class));
+            verify(testResultRepository).save(any(ApiTestResult.class));
+        }
     }
 
     @Test
@@ -146,27 +149,30 @@ class ApiTestServiceUnitTest {
                 .build();
 
         ApiTestingServiceGrpc.ApiTestingServiceBlockingStub stub = mock(ApiTestingServiceGrpc.ApiTestingServiceBlockingStub.class);
-        when(ApiTestingServiceGrpc.newBlockingStub(grpcChannel)).thenReturn(stub);
         when(stub.testEndpoint(any(Testing.TestRequest.class))).thenReturn(grpcResult);
 
         when(apiEndpointService.getEndpoint(testEndpointId)).thenReturn(postEndpoint);
         when(userRepository.findById(testUserId)).thenReturn(Optional.of(testUser));
         when(testResultRepository.save(any(ApiTestResult.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        // Act
-        ApiTestResult result = apiTestService.testEndpoint(testEndpointId, testUserId);
+        // Act - Use MockedStatic to mock the static method
+        try (MockedStatic<ApiTestingServiceGrpc> mockedGrpc = mockStatic(ApiTestingServiceGrpc.class)) {
+            mockedGrpc.when(() -> ApiTestingServiceGrpc.newBlockingStub(grpcChannel)).thenReturn(stub);
+            
+            ApiTestResult result = apiTestService.testEndpoint(testEndpointId, testUserId);
 
-        // Assert
-        assertNotNull(result);
-        assertEquals(200, result.getStatusCode());
-        assertTrue(result.getSuccess());
+            // Assert
+            assertNotNull(result);
+            assertEquals(200, result.getStatusCode());
+            assertTrue(result.getSuccess());
 
-        ArgumentCaptor<Testing.TestRequest> requestCaptor = ArgumentCaptor.forClass(Testing.TestRequest.class);
-        verify(stub).testEndpoint(requestCaptor.capture());
-        Testing.TestRequest capturedRequest = requestCaptor.getValue();
-        assertEquals("POST", capturedRequest.getMethod());
-        assertEquals("https://httpbin.org/post", capturedRequest.getUrl());
-        assertTrue(capturedRequest.getBody().size() > 0);
+            ArgumentCaptor<Testing.TestRequest> requestCaptor = ArgumentCaptor.forClass(Testing.TestRequest.class);
+            verify(stub).testEndpoint(requestCaptor.capture());
+            Testing.TestRequest capturedRequest = requestCaptor.getValue();
+            assertEquals("POST", capturedRequest.getMethod());
+            assertEquals("https://httpbin.org/post", capturedRequest.getUrl());
+            assertTrue(capturedRequest.getBody().size() > 0);
+        }
     }
 
     @Test
@@ -177,23 +183,26 @@ class ApiTestServiceUnitTest {
         );
 
         ApiTestingServiceGrpc.ApiTestingServiceBlockingStub stub = mock(ApiTestingServiceGrpc.ApiTestingServiceBlockingStub.class);
-        when(ApiTestingServiceGrpc.newBlockingStub(grpcChannel)).thenReturn(stub);
         when(stub.testEndpoint(any(Testing.TestRequest.class))).thenThrow(grpcException);
 
         when(apiEndpointService.getEndpoint(testEndpointId)).thenReturn(testEndpoint);
         when(userRepository.findById(testUserId)).thenReturn(Optional.of(testUser));
         when(testResultRepository.save(any(ApiTestResult.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        // Act
-        ApiTestResult result = apiTestService.testEndpoint(testEndpointId, testUserId);
+        // Act - Use MockedStatic to mock the static method
+        try (MockedStatic<ApiTestingServiceGrpc> mockedGrpc = mockStatic(ApiTestingServiceGrpc.class)) {
+            mockedGrpc.when(() -> ApiTestingServiceGrpc.newBlockingStub(grpcChannel)).thenReturn(stub);
+            
+            ApiTestResult result = apiTestService.testEndpoint(testEndpointId, testUserId);
 
-        // Assert
-        assertNotNull(result);
-        assertFalse(result.getSuccess());
-        assertNotNull(result.getError());
-        assertTrue(result.getError().contains("gRPC UNAVAILABLE") || result.getError().contains("Testing engine request timed out"));
+            // Assert
+            assertNotNull(result);
+            assertFalse(result.getSuccess());
+            assertNotNull(result.getError());
+            assertTrue(result.getError().contains("gRPC UNAVAILABLE") || result.getError().contains("Testing engine request timed out"));
 
-        verify(testResultRepository).save(any(ApiTestResult.class));
+            verify(testResultRepository).save(any(ApiTestResult.class));
+        }
     }
 
     @Test
@@ -250,24 +259,27 @@ class ApiTestServiceUnitTest {
                 .build();
 
         ApiTestingServiceGrpc.ApiTestingServiceBlockingStub stub = mock(ApiTestingServiceGrpc.ApiTestingServiceBlockingStub.class);
-        when(ApiTestingServiceGrpc.newBlockingStub(grpcChannel)).thenReturn(stub);
         when(stub.testEndpoint(any(Testing.TestRequest.class))).thenReturn(grpcResult);
 
         when(apiEndpointService.getEndpoint(testEndpointId)).thenReturn(endpointWithHeaders);
         when(userRepository.findById(testUserId)).thenReturn(Optional.of(testUser));
         when(testResultRepository.save(any(ApiTestResult.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        // Act
-        ApiTestResult result = apiTestService.testEndpoint(testEndpointId, testUserId);
+        // Act - Use MockedStatic to mock the static method
+        try (MockedStatic<ApiTestingServiceGrpc> mockedGrpc = mockStatic(ApiTestingServiceGrpc.class)) {
+            mockedGrpc.when(() -> ApiTestingServiceGrpc.newBlockingStub(grpcChannel)).thenReturn(stub);
+            
+            ApiTestResult result = apiTestService.testEndpoint(testEndpointId, testUserId);
 
-        // Assert
-        assertNotNull(result);
-        assertTrue(result.getSuccess());
+            // Assert
+            assertNotNull(result);
+            assertTrue(result.getSuccess());
 
-        ArgumentCaptor<Testing.TestRequest> requestCaptor = ArgumentCaptor.forClass(Testing.TestRequest.class);
-        verify(stub).testEndpoint(requestCaptor.capture());
-        Testing.TestRequest capturedRequest = requestCaptor.getValue();
-        assertTrue(capturedRequest.getHeadersMap().containsKey("Authorization"));
-        assertTrue(capturedRequest.getHeadersMap().containsKey("X-Custom-Header"));
+            ArgumentCaptor<Testing.TestRequest> requestCaptor = ArgumentCaptor.forClass(Testing.TestRequest.class);
+            verify(stub).testEndpoint(requestCaptor.capture());
+            Testing.TestRequest capturedRequest = requestCaptor.getValue();
+            assertTrue(capturedRequest.getHeadersMap().containsKey("Authorization"));
+            assertTrue(capturedRequest.getHeadersMap().containsKey("X-Custom-Header"));
+        }
     }
 }
