@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/user")
-@Profile("!test")  // Exclude from test profile to avoid OAuth2 dependency issues
+@Profile("!test")
 public class UserController {
 
     private final UserRepository userRepository;
@@ -21,19 +21,11 @@ public class UserController {
 
     @GetMapping("/me")
     public User getCurrentUser(Authentication authentication) {
-        if (authentication != null) {
-            Object principal = authentication.getPrincipal();
-            // Use reflection to check for OAuth2User to avoid compile-time dependency in tests
-            if (principal != null && principal.getClass().getName().equals("org.springframework.security.oauth2.core.user.OAuth2User")) {
-                try {
-                    java.lang.reflect.Method getAttribute = principal.getClass().getMethod("getAttribute", String.class);
-                    String githubLogin = (String) getAttribute.invoke(principal, "login");
-                    return userRepository.findByGithubLogin(githubLogin).orElse(null);
-                } catch (Exception e) {
-                    // Fallback if reflection fails
-                    return null;
-                }
-            }
+        if (authentication != null && authentication.getPrincipal() instanceof org.springframework.security.core.userdetails.UserDetails) {
+            org.springframework.security.core.userdetails.UserDetails userDetails = 
+                (org.springframework.security.core.userdetails.UserDetails) authentication.getPrincipal();
+            String email = userDetails.getUsername();
+            return userRepository.findByEmail(email).orElse(null);
         }
         return null;
     }

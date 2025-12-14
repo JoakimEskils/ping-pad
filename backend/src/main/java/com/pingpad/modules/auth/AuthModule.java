@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Configuration;
  * Auth Module - Handles authentication and authorization
  * 
  * Responsibilities:
- * - OAuth2 authentication (GitHub)
+ * - JWT token-based authentication
  * - Security configuration
  * - User authentication flow
  */

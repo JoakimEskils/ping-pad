@@ -10,6 +10,7 @@ import { Label } from './ui/label';
 import { Select } from './ui/select';
 import { Textarea } from './ui/textarea';
 import EndpointDetail from './EndpointDetail';
+import { getAuthHeaders } from '../utils/auth';
 
 // Generate dummy endpoints
 const generateDummyEndpoints = (): ApiEndpoint[] => {
@@ -90,7 +91,9 @@ export default function ApiEndpoints() {
   const loadEndpoints = async () => {
     try {
       // Try to load from API, fallback to dummy data
-      const response = await fetch('http://localhost:8080/api/endpoints', {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8080';
+      const response = await fetch(`${backendUrl}/api/endpoints`, {
+        headers: getAuthHeaders(),
         credentials: 'include'
       });
       
@@ -141,11 +144,10 @@ export default function ApiEndpoints() {
     }
 
     try {
-      const response = await fetch('http://localhost:8080/api/endpoints', {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8080';
+      const response = await fetch(`${backendUrl}/api/endpoints`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: getAuthHeaders(),
         credentials: 'include',
         body: JSON.stringify({
           name: newEndpoint.name,
@@ -208,8 +210,10 @@ export default function ApiEndpoints() {
     setIsTesting(endpoint.id);
     
     try {
-      const response = await fetch(`http://localhost:8080/api/endpoints/${endpoint.id}/test`, {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8080';
+      const response = await fetch(`${backendUrl}/api/endpoints/${endpoint.id}/test`, {
         method: 'POST',
+        headers: getAuthHeaders(),
         credentials: 'include'
       });
 
@@ -232,8 +236,10 @@ export default function ApiEndpoints() {
     }
 
     try {
-      const response = await fetch(`http://localhost:8080/api/endpoints/${endpointId}`, {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8080';
+      const response = await fetch(`${backendUrl}/api/endpoints/${endpointId}`, {
         method: 'DELETE',
+        headers: getAuthHeaders(),
         credentials: 'include'
       });
 

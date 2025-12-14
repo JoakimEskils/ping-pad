@@ -16,6 +16,7 @@ public class User {
     private String name;
     private String githubLogin;
     private String email;
+    private String password; // Hashed password
 
     @DateTimeFormat
     private LocalDateTime createdAt;
@@ -60,4 +61,7 @@ public class User {
 
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
 }

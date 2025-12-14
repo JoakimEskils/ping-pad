@@ -31,8 +31,6 @@ services:
       - DB_USER=pingpad
       - DB_PASSWORD=password
       - API_TESTING_ENGINE_URL=http://api-testing-engine:8081
-      - GITHUB_CLIENT_ID=Ov23livg36sQxvuFHa9Q
-      - GITHUB_CLIENT_SECRET=4a76dbaefbf27731db4d212b30278f415a2dff01
     depends_on:
       postgres:
         condition: service_healthy
