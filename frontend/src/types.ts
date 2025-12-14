@@ -51,4 +51,14 @@ export interface WebhookEvent {
   responseTime?: number;
   error?: string;
   timestamp: Date;
+}
+
+export interface Alarm {
+  testResultId: number;
+  endpointId: string;
+  endpointName: string;
+  endpointUrl: string;
+  error?: string;
+  statusCode?: number;
+  timestamp: Date;
 } 

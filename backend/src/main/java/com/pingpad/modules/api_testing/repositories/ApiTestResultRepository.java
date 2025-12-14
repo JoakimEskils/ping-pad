@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 public interface ApiTestResultRepository extends JpaRepository<ApiTestResult, Long> {
@@ -23,5 +24,11 @@ public interface ApiTestResultRepository extends JpaRepository<ApiTestResult, Lo
         @Param("endpointId") UUID endpointId,
         @Param("startTime") LocalDateTime startTime,
         @Param("endTime") LocalDateTime endTime
+    );
+
+    @Query("SELECT r FROM ApiTestResult r WHERE r.endpointId IN :endpointIds AND r.success = false AND r.timestamp >= :startTime ORDER BY r.timestamp DESC")
+    List<ApiTestResult> findByEndpointIdInAndSuccessFalseAndTimestampAfter(
+        @Param("endpointIds") Set<UUID> endpointIds,
+        @Param("startTime") LocalDateTime startTime
     );
 }

@@ -1,7 +1,10 @@
-import { LayoutDashboard, Activity, Settings, LogOut, X } from 'lucide-react';
+import { LayoutDashboard, Activity, Settings, LogOut, X, Bell } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from './ui/button';
+import { Badge } from './ui/badge';
 import { cn } from '../lib/utils';
+import { useState, useEffect } from 'react';
+import { getAuthHeaders } from '../utils/auth';
 
 interface SidebarProps {
   activeView: string;
@@ -21,8 +24,39 @@ export default function Sidebar({
   onMobileToggle,
 }: SidebarProps) {
   const location = useLocation();
+  const [alarmCount, setAlarmCount] = useState(0);
   
-  const menuItems = [
+  useEffect(() => {
+    loadAlarmCount();
+    // Refresh alarm count every 10 seconds
+    const interval = setInterval(loadAlarmCount, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const loadAlarmCount = async () => {
+    try {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8080';
+      const response = await fetch(`${backendUrl}/api/alarms/count`, {
+        headers: getAuthHeaders(),
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAlarmCount(data.count || 0);
+      }
+    } catch (error) {
+      console.error('Error loading alarm count:', error);
+    }
+  };
+  
+  const menuItems: Array<{
+    id: string;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    path: string;
+    badge?: number;
+  }> = [
     {
       id: 'dashboard',
       label: 'Dashboard',
@@ -34,6 +68,13 @@ export default function Sidebar({
       label: 'My Endpoints',
       icon: Activity,
       path: '/endpoints',
+    },
+    {
+      id: 'alarms',
+      label: 'Alarms',
+      icon: Bell,
+      path: '/alarms',
+      badge: alarmCount > 0 ? alarmCount : undefined,
     },
     {
       id: 'settings',
@@ -116,7 +157,12 @@ export default function Sidebar({
                   )}
                 >
                   <Icon className={cn('h-5 w-5', isActive ? 'text-white' : 'text-slate-400')} />
-                  <span>{item.label}</span>
+                  <span className="flex-1">{item.label}</span>
+                  {item.badge !== undefined && item.badge > 0 && (
+                    <Badge className="bg-red-600 text-white min-w-[20px] flex items-center justify-center">
+                      {item.badge > 99 ? '99+' : item.badge}
+                    </Badge>
+                  )}
                 </Link>
               );
             })}
