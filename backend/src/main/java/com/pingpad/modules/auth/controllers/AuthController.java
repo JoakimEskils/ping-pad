@@ -1,9 +1,11 @@
 package com.pingpad.modules.auth.controllers;
 
 import com.pingpad.modules.auth.services.CustomUserDetailsService;
+import com.pingpad.modules.auth.services.LoginRateLimiter;
 import com.pingpad.modules.auth.utils.JwtTokenUtil;
 import com.pingpad.modules.user_management.models.User;
 import com.pingpad.modules.user_management.repositories.UserRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -25,15 +27,17 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final JwtTokenUtil jwtTokenUtil;
     private final CustomUserDetailsService userDetailsService;
+    private final LoginRateLimiter rateLimiter;
 
     public AuthController(UserRepository userRepository, PasswordEncoder passwordEncoder,
                          AuthenticationManager authenticationManager, JwtTokenUtil jwtTokenUtil,
-                         CustomUserDetailsService userDetailsService) {
+                         CustomUserDetailsService userDetailsService, LoginRateLimiter rateLimiter) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.jwtTokenUtil = jwtTokenUtil;
         this.userDetailsService = userDetailsService;
+        this.rateLimiter = rateLimiter;
     }
 
     @PostMapping("/register")
@@ -73,14 +77,41 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<?> login(@RequestBody LoginRequest request, HttpServletRequest httpRequest) {
+        // Get client IP address
+        String clientIp = getClientIpAddress(httpRequest);
+        
+        // Check rate limit before processing
+        if (rateLimiter.isRateLimited(clientIp)) {
+            long secondsUntilReset = rateLimiter.getSecondsUntilReset(clientIp);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Too many login attempts. Please try again later.");
+            errorResponse.put("retryAfter", secondsUntilReset);
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(errorResponse);
+        }
+
         try {
             authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.email, request.password)
             );
+            
+            // Successful login - clear rate limit for this IP
+            rateLimiter.clearAttempts(clientIp);
+            
         } catch (BadCredentialsException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(Map.of("error", "Invalid email or password"));
+            // Record failed attempt
+            rateLimiter.recordAttempt(clientIp);
+            
+            int remainingAttempts = rateLimiter.getRemainingAttempts(clientIp);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Invalid email or password");
+            if (remainingAttempts > 0) {
+                errorResponse.put("remainingAttempts", remainingAttempts);
+            } else {
+                long secondsUntilReset = rateLimiter.getSecondsUntilReset(clientIp);
+                errorResponse.put("retryAfter", secondsUntilReset);
+            }
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
         }
 
         final UserDetails userDetails = userDetailsService.loadUserByUsername(request.email);
@@ -98,6 +129,30 @@ public class AuthController {
         ));
 
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Extract client IP address from request, handling proxies
+     */
+    private String getClientIpAddress(HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("X-Real-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("Proxy-Client-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("WL-Proxy-Client-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getRemoteAddr();
+        }
+        // Handle multiple IPs in X-Forwarded-For header
+        if (ip != null && ip.contains(",")) {
+            ip = ip.split(",")[0].trim();
+        }
+        return ip != null ? ip : "unknown";
     }
 
     @PostMapping("/login-as-test")
