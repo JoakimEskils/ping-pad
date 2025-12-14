@@ -2,6 +2,7 @@ package com.pingpad.config;
 
 import com.pingpad.modules.auth.filters.JwtAuthenticationFilter;
 import com.pingpad.modules.auth.services.CustomUserDetailsService;
+import com.pingpad.modules.auth.services.LoginRateLimiter;
 import com.pingpad.modules.auth.utils.JwtTokenUtil;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -44,6 +45,9 @@ public class TestSecurityConfig {
 
     @MockBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @MockBean
+    private LoginRateLimiter loginRateLimiter;
 
     @Bean
     @Primary
