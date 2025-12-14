@@ -12,6 +12,7 @@ import (
 
 	"pingpad-api-testing-engine/internal/api"
 	"pingpad-api-testing-engine/internal/config"
+	grpcServer "pingpad-api-testing-engine/internal/grpc"
 	"pingpad-api-testing-engine/pkg/testing"
 )
 
@@ -37,7 +38,7 @@ func main() {
 	handlerWithMiddleware := handler.AddCorrelationIDMiddleware(mux)
 	handlerWithCORS := addCORS(handlerWithMiddleware)
 
-	// Create server
+	// Create HTTP server
 	server := &http.Server{
 		Addr:         fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port),
 		Handler:      handlerWithCORS,
@@ -45,11 +46,23 @@ func main() {
 		WriteTimeout: cfg.Server.WriteTimeout,
 	}
 
-	// Start server in a goroutine
+	// Create gRPC server
+	grpcSrv := grpcServer.NewServer(engine, cfg)
+	grpcPort := 9090 // Default gRPC port, can be configured
+
+	// Start HTTP server in a goroutine
 	go func() {
-		log.Printf("Starting PingPad API Testing Engine v%s on %s", version, server.Addr)
+		log.Printf("Starting PingPad API Testing Engine HTTP v%s on %s", version, server.Addr)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server failed to start: %v", err)
+			log.Fatalf("HTTP server failed to start: %v", err)
+		}
+	}()
+
+	// Start gRPC server in a goroutine
+	go func() {
+		log.Printf("Starting PingPad API Testing Engine gRPC v%s on port %d", version, grpcPort)
+		if err := grpcSrv.Start(grpcPort); err != nil {
+			log.Fatalf("gRPC server failed to start: %v", err)
 		}
 	}()
 

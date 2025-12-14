@@ -119,6 +119,94 @@ This will build and start two containers:
 
 The Go Testing Engine provides high-performance HTTP testing with excellent concurrency, while Spring Boot handles business logic and data persistence via Postgres DB.
 
+## gRPC Communication
+
+PingPad uses **gRPC** for communication between the Java backend service and the Go API testing engine, replacing the previous JSON-over-HTTP REST API. This provides better performance, type safety, and streaming capabilities.
+
+### Why gRPC?
+
+1. **Performance**: gRPC uses HTTP/2 and Protocol Buffers (protobuf) for efficient binary serialization, resulting in faster communication and lower latency compared to JSON over HTTP/1.1.
+
+2. **Type Safety**: Protocol Buffers provide strong typing and schema validation, reducing runtime errors and ensuring data consistency between services.
+
+3. **Code Generation**: Both Java and Go generate client/server code from the same `.proto` file, ensuring type compatibility and reducing manual serialization code.
+
+4. **Streaming Support**: gRPC supports unary, server streaming, client streaming, and bidirectional streaming, enabling future enhancements like real-time test progress updates.
+
+5. **Language Agnostic**: Protocol Buffers work across multiple languages, making it easy to add new services in different languages if needed.
+
+### Implementation Details
+
+#### Protocol Definition
+
+The gRPC service is defined in `api-testing-engine/proto/testing.proto`:
+
+```protobuf
+service ApiTestingService {
+  rpc TestEndpoint(TestRequest) returns (TestResult);
+  rpc TestBatch(BatchTestRequest) returns (BatchTestResult);
+  rpc GetHealth(HealthRequest) returns (HealthResponse);
+  rpc GetMetrics(MetricsRequest) returns (MetricsResponse);
+}
+```
+
+#### Go gRPC Server
+
+The Go service implements the gRPC server in `api-testing-engine/internal/grpc/server.go`:
+
+- **Server**: Runs on port 9090 (configurable)
+- **Correlation ID Support**: Extracts correlation IDs from gRPC metadata headers (`x-correlation-id`) for request tracing
+- **Error Handling**: Properly converts internal errors to gRPC status codes
+- **Concurrent Execution**: Handles multiple concurrent test requests efficiently
+
+The gRPC server runs alongside the HTTP server, allowing both protocols to coexist during migration or for different use cases.
+
+#### Java gRPC Client
+
+The Java backend uses a gRPC client to communicate with the Go service:
+
+- **Channel Configuration**: Managed channel configured in `GrpcClientConfig` with correlation ID interceptor
+- **Service Stub**: Blocking stub for synchronous calls (can be upgraded to async stub for better performance)
+- **Correlation ID Propagation**: Automatically propagates correlation IDs from MDC to gRPC metadata
+- **Error Handling**: Converts gRPC status codes to meaningful error messages
+
+#### Code Generation
+
+**Go**: Code is generated using `protoc` with the Go plugin:
+```bash
+protoc --go_out=. --go-grpc_out=. proto/testing.proto
+```
+
+**Java**: Code is generated automatically during Maven build using the `protobuf-maven-plugin`:
+- Proto files are read from `api-testing-engine/proto/`
+- Generated Java classes are placed in `target/generated-sources/protobuf/java/`
+- Package structure: `testing.*`
+
+### Configuration
+
+gRPC connection settings can be configured in `application.properties`:
+
+```properties
+# gRPC client configuration
+api.testing.engine.grpc.url=api-testing-engine
+api.testing.engine.grpc.port=9090
+```
+
+### Benefits Over JSON REST
+
+1. **Reduced Latency**: Binary protocol and HTTP/2 multiplexing reduce network overhead
+2. **Smaller Payloads**: Protocol Buffers are more compact than JSON
+3. **Type Safety**: Compile-time type checking prevents serialization errors
+4. **Better Error Handling**: Structured gRPC status codes vs HTTP status codes
+5. **Future-Proof**: Easy to add streaming, compression, and other advanced features
+
+### Migration Notes
+
+- The HTTP REST API is still available for backward compatibility or direct testing
+- Both gRPC (port 9090) and HTTP (port 8081) servers run simultaneously
+- Correlation IDs work seamlessly across both protocols
+- All existing functionality is preserved with improved performance
+
 ## Nginx
 
 PingPad uses **Nginx** as a reverse proxy and API gateway to provide a unified entry point for all services. Nginx sits in front of the application stack and handles several critical responsibilities:

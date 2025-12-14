@@ -1,0 +1,100 @@
+syntax = "proto3";
+
+package testing;
+
+option go_package = "pingpad-api-testing-engine/proto";
+option java_package = "testing";
+option java_outer_classname = "Testing";
+
+// API Testing Service for executing HTTP requests
+service ApiTestingService {
+  // TestEndpoint executes a single API endpoint test
+  rpc TestEndpoint(TestRequest) returns (TestResult);
+  
+  // TestBatch executes multiple API endpoint tests
+  rpc TestBatch(BatchTestRequest) returns (BatchTestResult);
+  
+  // GetHealth returns the health status of the testing engine
+  rpc GetHealth(HealthRequest) returns (HealthResponse);
+  
+  // GetMetrics returns current metrics
+  rpc GetMetrics(MetricsRequest) returns (MetricsResponse);
+}
+
+// TestRequest represents a request to test an API endpoint
+message TestRequest {
+  string id = 1;
+  string endpoint_id = 2;
+  string method = 3;
+  string url = 4;
+  map<string, string> headers = 5;
+  bytes body = 6;
+  string timeout = 7; // Duration string like "30s"
+  bool follow_redirects = 8;
+  int32 max_retries = 9;
+  string user_id = 10;
+  string created_at = 11; // RFC3339 timestamp
+}
+
+// TestResult represents the result of an API test
+message TestResult {
+  string id = 1;
+  string test_request_id = 2;
+  string endpoint_id = 3;
+  int32 status_code = 4;
+  int64 response_time_nanos = 5; // Duration in nanoseconds
+  bytes response_body = 6;
+  map<string, string> response_headers = 7;
+  string error = 8;
+  bool success = 9;
+  string timestamp = 10; // RFC3339 timestamp
+  int32 retry_count = 11;
+}
+
+// BatchTestRequest represents a request to test multiple endpoints
+message BatchTestRequest {
+  string id = 1;
+  repeated TestRequest requests = 2;
+  string user_id = 3;
+  string created_at = 4; // RFC3339 timestamp
+}
+
+// BatchTestResult represents the result of a batch test
+message BatchTestResult {
+  string id = 1;
+  repeated TestResult results = 2;
+  TestSummary summary = 3;
+  int64 duration_nanos = 4; // Duration in nanoseconds
+}
+
+// TestSummary provides statistics about test results
+message TestSummary {
+  int32 total_tests = 1;
+  int32 successful = 2;
+  int32 failed = 3;
+  int64 average_time_nanos = 4;
+  int64 min_time_nanos = 5;
+  int64 max_time_nanos = 6;
+  double success_rate = 7;
+  double error_rate = 8;
+}
+
+// HealthRequest is an empty request for health checks
+message HealthRequest {}
+
+// HealthResponse represents the health status
+message HealthResponse {
+  string status = 1;
+  string version = 2;
+  int64 uptime_seconds = 3;
+  map<string, int64> metrics = 4;
+  string timestamp = 5; // RFC3339 timestamp
+}
+
+// MetricsRequest is an empty request for metrics
+message MetricsRequest {}
+
+// MetricsResponse contains current metrics
+message MetricsResponse {
+  map<string, int64> metrics = 1;
+}
