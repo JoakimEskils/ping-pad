@@ -2,7 +2,6 @@ package com.pingpad.modules.auth.services;
 
 import com.pingpad.modules.user_management.models.User;
 import com.pingpad.modules.user_management.repositories.UserRepository;
-import org.springframework.context.annotation.Profile;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -11,7 +10,6 @@ import org.springframework.stereotype.Service;
 import java.util.Collections;
 
 @Service
-@Profile("!test")
 public class CustomUserDetailsService implements UserDetailsService {
 
     private final UserRepository userRepository;

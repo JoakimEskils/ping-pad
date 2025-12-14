@@ -4,7 +4,6 @@ import com.pingpad.modules.auth.services.CustomUserDetailsService;
 import com.pingpad.modules.auth.utils.JwtTokenUtil;
 import com.pingpad.modules.user_management.models.User;
 import com.pingpad.modules.user_management.repositories.UserRepository;
-import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -19,7 +18,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
-@Profile("!test")
 public class AuthController {
 
     private final UserRepository userRepository;
